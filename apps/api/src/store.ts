@@ -1,20 +1,35 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { AppBindings } from "./bindings.js";
+import type { Address } from "./types.js";
 import type { AppData } from "./types.js";
 
 const dataDir = path.resolve(process.cwd(), "data");
 const dataFile = path.join(dataDir, "app-data.json");
 
+const defaultAddress = (): Address => ({
+  street1: "",
+  street2: "",
+  city: "",
+  state: "",
+  zipCode: "",
+  country: ""
+});
+
 const defaultData: AppData = {
   profile: {
     fullName: "",
     headline: "",
+    phoneNumber: "",
     summary: "",
     email: "",
-    address: "",
+    address: defaultAddress(),
     skills: [],
     experience: [],
+    education: [],
+    certifications: [],
+    projects: [],
+    customSections: [],
     links: [],
     githubUsername: "",
     githubUrl: "",
@@ -51,9 +66,53 @@ async function ensureD1Store(bindings: AppBindings) {
   ).run();
 }
 
-function normalizeData(parsed: AppData & { profile?: AppData["profile"] & { location?: string } }) {
-  if (parsed.profile && !parsed.profile.address && parsed.profile.location) {
-    parsed.profile.address = parsed.profile.location;
+function normalizeData(
+  parsed: AppData & {
+    profile?: AppData["profile"] & {
+      location?: string;
+      address?: string | Address;
+    };
+  }
+) {
+  if (!parsed.profile) {
+    return parsed as AppData;
+  }
+
+  if (typeof parsed.profile.address === "string") {
+    parsed.profile.address = {
+      ...defaultAddress(),
+      street1: parsed.profile.address
+    };
+  }
+
+  if (!parsed.profile.address) {
+    parsed.profile.address = defaultAddress();
+  }
+
+  if (!parsed.profile.education) {
+    parsed.profile.education = [];
+  }
+
+  if (!parsed.profile.certifications) {
+    parsed.profile.certifications = [];
+  }
+
+  if (!parsed.profile.projects) {
+    parsed.profile.projects = [];
+  }
+
+  if (!parsed.profile.customSections) {
+    parsed.profile.customSections = [];
+  }
+
+  parsed.profile.education = (parsed.profile.education ?? []).map((item) => ({
+    ...item,
+    hasDifferentCountry: item.hasDifferentCountry ?? false,
+    country: item.country ?? ""
+  }));
+
+  if (parsed.profile.location && !parsed.profile.address.street1) {
+    parsed.profile.address.street1 = parsed.profile.location;
   }
 
   return parsed as AppData;

@@ -8,6 +8,48 @@ export type Experience = {
   technologies: string[];
 };
 
+export type Education = {
+  id: string;
+  school: string;
+  degree: string;
+  fieldOfStudy: string;
+  startDate: string;
+  endDate: string;
+  description: string;
+  hasDifferentCountry: boolean;
+  country: string;
+};
+
+export type Certification = {
+  id: string;
+  name: string;
+  issuer: string;
+  issuedDate: string;
+  expirationDate: string;
+  credentialId: string;
+  url: string;
+};
+
+export type CustomSection = {
+  id: string;
+  title: string;
+  items: string[];
+};
+
+export type Project = {
+  id: string;
+  title: string;
+  category: string;
+  summary: string;
+  technologies: string[];
+  startedAt: string;
+  lastActiveAt: string;
+  developmentDuration: string;
+  repoUrl: string;
+  homepageUrl: string;
+  highlights: string[];
+};
+
 export type LinkItem = {
   id: string;
   label: string;
@@ -22,6 +64,11 @@ export type RepoContext = {
   homepage: string | null;
   topics: string[];
   language: string | null;
+  createdAt: string;
+  updatedAt: string;
+  pushedAt: string;
+  languages: string[];
+  category: string;
   readmeExcerpt?: string;
 };
 
@@ -33,14 +80,28 @@ export type ResumeAsset = {
   storageKey: string;
 };
 
+export type Address = {
+  street1: string;
+  street2: string;
+  city: string;
+  state: string;
+  zipCode: string;
+  country: string;
+};
+
 export type Profile = {
   fullName: string;
   headline: string;
+  phoneNumber: string;
   summary: string;
   email: string;
-  address: string;
+  address: Address;
   skills: string[];
   experience: Experience[];
+  education: Education[];
+  certifications: Certification[];
+  projects: Project[];
+  customSections: CustomSection[];
   links: LinkItem[];
   githubUsername: string;
   githubUrl: string;

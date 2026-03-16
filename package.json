@@ -11,7 +11,12 @@
     "dev": "npm run dev --workspace apps/api",
     "dev:api": "npm run dev --workspace apps/api",
     "dev:web": "npm run dev --workspace apps/web",
+    "dev:worker": "npm run dev:worker --workspace apps/api",
     "build": "npm run build --workspaces",
-    "typecheck": "npm run typecheck --workspaces"
+    "typecheck": "npm run typecheck --workspaces",
+    "deploy:api": "npm run cf:deploy --workspace apps/api"
+  },
+  "devDependencies": {
+    "@esbuild/darwin-arm64": "^0.27.4"
   }
 }

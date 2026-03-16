@@ -2,11 +2,20 @@
   "name": "aquario-api",
   "main": "src/worker.ts",
   "compatibility_date": "2026-03-16",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "vars": {
+    "APP_ORIGIN": "http://localhost:5173",
+    "API_ORIGIN": "http://localhost:8787",
+    "COOKIE_SECURE": "false",
+    "GEMINI_MODEL": "gemini-2.5-flash"
+  },
   "d1_databases": [
     {
       "binding": "APP_DB",
       "database_name": "aquario-db",
-      "database_id": "replace-with-your-d1-database-id"
+      "database_id": "49e8aed6-5d4e-4972-a95c-96efc878a74f"
     }
   ],
   "r2_buckets": [
