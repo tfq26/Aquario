@@ -1,0 +1,18 @@
+{
+  "name": "aquario-api",
+  "main": "src/worker.ts",
+  "compatibility_date": "2026-03-16",
+  "d1_databases": [
+    {
+      "binding": "APP_DB",
+      "database_name": "aquario-db",
+      "database_id": "replace-with-your-d1-database-id"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "RESUME_BUCKET",
+      "bucket_name": "aquario-resumes"
+    }
+  ]
+}
