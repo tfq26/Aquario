@@ -2,14 +2,12 @@
   "name": "aquario-api",
   "main": "src/worker.ts",
   "compatibility_date": "2026-03-16",
-  "compatibility_flags": [
-    "nodejs_compat"
-  ],
+  "compatibility_flags": ["nodejs_compat"],
   "vars": {
     "APP_ORIGIN": "http://localhost:5173",
     "API_ORIGIN": "http://localhost:8787",
     "COOKIE_SECURE": "false",
-    "GEMINI_MODEL": "gemini-2.5-flash"
+    "GEMINI_MODEL": "gemini-3.1-flash"
   },
   "d1_databases": [
     {
@@ -23,5 +21,15 @@
       "binding": "RESUME_BUCKET",
       "bucket_name": "aquario-resumes"
     }
-  ]
+  ],
+  "env": {
+    "production": {
+      "vars": {
+        "APP_ORIGIN": "https://d974f8b2.aquario-web.pages.dev",
+        "API_ORIGIN": "https://aquario-api.aquario-api.workers.dev",
+        "COOKIE_SECURE": "true",
+        "GEMINI_MODEL": "gemini-3.1-flash"
+      }
+    }
+  }
 }
