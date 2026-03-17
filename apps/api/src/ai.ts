@@ -421,13 +421,79 @@ function sanitizeImportedProfile(parsed: Partial<ResumeProfileImport>): ResumePr
 }
 
 function normalizeResumeText(value: string) {
+  const monthPattern = `(?:${monthNames.join("|")})`;
+
   return value
     .replace(/\u0000/g, "")
     .replace(/\r/g, "")
+    // Repair common PDF text extraction joins like "ApprenticeJune 2025".
+    .replace(new RegExp(`([A-Za-z)])(${monthPattern}\\s+\\d{4})`, "g"), "$1 $2")
+    // Repair merged location suffixes like "DataRichardson, TX, USA".
+    .replace(/([A-Za-z])([A-Z][a-z]+,\s*[A-Z]{2},\s*[A-Z]{2,})/g, "$1 $2")
     .replace(/[ \t]+\n/g, "\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 }
+
+const monthNames = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December"
+] as const;
+
+const dateRangePattern = new RegExp(
+  `((?:${monthNames.join("|")})\\s+\\d{4})\\s*-\\s*(Present|Current|(?:${monthNames.join("|")})\\s+\\d{4})`,
+  "i"
+);
+
+const knownTechKeywords = [
+  ".NET",
+  ".NET 8",
+  "C#",
+  "JavaScript",
+  "TypeScript",
+  "Python",
+  "SQL",
+  "Java",
+  "React",
+  "Vue.js",
+  "Node.js",
+  "Bun",
+  "Tailwind CSS",
+  "Azure",
+  "Microsoft Azure",
+  "Git",
+  "GitOps",
+  "Vercel",
+  "PostgreSQL",
+  "MongoDB",
+  "SurrealDB",
+  "Hono",
+  "Drizzle ORM",
+  "Terraform",
+  "MapLibre JS",
+  "BigQuery",
+  "DuckDB"
+] as const;
+
+type ResumeSections = {
+  summary: string[];
+  education: string[];
+  experience: string[];
+  projects: string[];
+  skills: string[];
+  certifications: string[];
+  organizations: string[];
+};
 
 function findFirstMatch(value: string, pattern: RegExp) {
   const match = value.match(pattern);
@@ -441,36 +507,215 @@ function splitListItems(value: string) {
     .filter(Boolean);
 }
 
-function extractSection(text: string, headings: string[]) {
-  const escaped = headings.map((heading) => heading.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
-  const headingPattern = new RegExp(`^(?:${escaped.join("|")})\\s*:?\$`, "i");
-  const lines = text.split("\n");
-  const collected: string[] = [];
-  let active = false;
+function splitBulletLines(value: string) {
+  return value
+    .split(/\n|•|·/)
+    .map((item) => item.replace(/^[-*]\s*/, "").trim())
+    .filter(Boolean);
+}
 
-  for (const line of lines) {
-    const trimmed = line.trim();
+function normalizeHeadingKey(value: string) {
+  return value.toLowerCase().replace(/[^a-z]/g, "");
+}
 
-    if (headingPattern.test(trimmed)) {
-      active = true;
+function splitIntoSections(text: string): ResumeSections {
+  const sections: ResumeSections = {
+    summary: [],
+    education: [],
+    experience: [],
+    projects: [],
+    skills: [],
+    certifications: [],
+    organizations: []
+  };
+
+  const headingMap: Record<string, keyof ResumeSections> = {
+    summary: "summary",
+    professionalsummary: "summary",
+    profile: "summary",
+    objective: "summary",
+    education: "education",
+    academicbackground: "education",
+    professionalexperience: "experience",
+    experience: "experience",
+    workexperience: "experience",
+    projectsoutsideexperience: "projects",
+    projects: "projects",
+    skills: "skills",
+    technicalskills: "skills",
+    coreskills: "skills",
+    technologies: "skills",
+    certifications: "certifications",
+    certificates: "certifications",
+    licenses: "certifications",
+    organizations: "organizations"
+  };
+
+  let current: keyof ResumeSections | null = null;
+
+  for (const rawLine of text.split("\n")) {
+    const line = rawLine.trim();
+
+    if (!line) {
+      if (current) {
+        sections[current].push("");
+      }
       continue;
     }
 
-    if (
-      active &&
-      /^[A-Z][A-Za-z/& ,()-]{2,40}\s*:?$/.test(trimmed) &&
-      !trimmed.includes("@") &&
-      trimmed.toLowerCase() !== trimmed
-    ) {
-      break;
+    const key = normalizeHeadingKey(line);
+    if (headingMap[key]) {
+      current = headingMap[key];
+      continue;
     }
 
-    if (active) {
-      collected.push(line);
+    if (current) {
+      sections[current].push(line);
     }
   }
 
-  return collected.join("\n").trim();
+  return sections;
+}
+
+function collapseWrappedLines(lines: string[]) {
+  const collapsed: string[] = [];
+
+  for (const line of lines) {
+    if (!line) {
+      collapsed.push("");
+      continue;
+    }
+
+    const previous = collapsed[collapsed.length - 1];
+    const isBullet = /^[-\u2022*•]/.test(line);
+
+    if (previous && previous !== "" && !isBullet && !dateRangePattern.test(line) && /^[a-z0-9(]/i.test(line)) {
+      collapsed[collapsed.length - 1] = `${previous} ${line}`.replace(/\s+/g, " ").trim();
+      continue;
+    }
+
+    collapsed.push(line);
+  }
+
+  return collapsed;
+}
+
+function parseMonthYear(value: string) {
+  const match = value.match(new RegExp(`(${monthNames.join("|")})\\s+(\\d{4})`, "i"));
+  if (!match) {
+    return "";
+  }
+
+  const monthIndex = monthNames.findIndex((month) => month.toLowerCase() === match[1].toLowerCase());
+  return `${match[2]}-${String(monthIndex + 1).padStart(2, "0")}-01`;
+}
+
+function parseDateRange(value: string) {
+  const match = value.match(dateRangePattern);
+  if (!match) {
+    return { startDate: "", endDate: "" };
+  }
+
+  const [range] = match;
+  const [startRaw, endRaw] = range.split(/\s*-\s*/);
+
+  return {
+    startDate: parseMonthYear(startRaw),
+    endDate: /present|current/i.test(endRaw) ? "" : parseMonthYear(endRaw)
+  };
+}
+
+function trimLocationSuffix(value: string) {
+  const match = value.match(/\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*,\s*[A-Z]{2}(?:,\s*[A-Z]{2,})?)$/);
+
+  if (!match || match.index === undefined) {
+    return value.trim();
+  }
+
+  return value.slice(0, match.index).trim() || value.trim();
+}
+
+function inferTechnologiesFromText(value: string) {
+  const lower = value.toLowerCase();
+  return knownTechKeywords.filter((keyword) => lower.includes(keyword.toLowerCase()));
+}
+
+function parseExperienceEntries(lines: string[]) {
+  const collapsed = collapseWrappedLines(lines).filter((line) => line !== "");
+  const entries: ResumeProfileImport["experience"] = [];
+
+  let index = 0;
+  while (index < collapsed.length) {
+    const companyLine = collapsed[index] ?? "";
+    const titleLine = collapsed[index + 1] ?? "";
+    const bulletLines: string[] = [];
+    index += 2;
+
+    while (index < collapsed.length && /^[-\u2022*•]/.test(collapsed[index] ?? "")) {
+      bulletLines.push((collapsed[index] ?? "").replace(/^[-\u2022*•]\s*/, "").trim());
+      index += 1;
+    }
+
+    if (!companyLine && !titleLine && bulletLines.length === 0) {
+      continue;
+    }
+
+    const { startDate, endDate } = parseDateRange(titleLine);
+    const normalizedTitle = titleLine
+      .replace(dateRangePattern, "")
+      .replace(/\s{2,}/g, " ")
+      .trim();
+
+    entries.push({
+      id: `heuristic-exp-${entries.length + 1}`,
+      company: trimLocationSuffix(companyLine),
+      title: normalizedTitle,
+      startDate,
+      endDate,
+      highlights: bulletLines,
+      technologies: Array.from(new Set(inferTechnologiesFromText([companyLine, titleLine, ...bulletLines].join(" "))))
+    });
+  }
+
+  return entries.filter((entry) => entry.company || entry.title || entry.highlights.length > 0);
+}
+
+function parseEducationEntries(lines: string[]) {
+  const collapsed = collapseWrappedLines(lines).filter((line) => line !== "");
+  const entries: Education[] = [];
+
+  for (let index = 0; index < collapsed.length; index += 2) {
+    let schoolLine = collapsed[index] ?? "";
+    let degreeLine = collapsed[index + 1] ?? "";
+
+    if (!schoolLine && !degreeLine) {
+      continue;
+    }
+
+    if (!degreeLine && schoolLine.includes("Bachelor")) {
+      const [schoolPart, degreePart] = schoolLine.split(/(?=Bachelor|Master|Associate|PhD|MBA|JD|MD|Diploma|Certificate)/i);
+      schoolLine = schoolPart?.trim() ?? schoolLine;
+      degreeLine = degreePart?.trim() ?? "";
+    }
+
+    const { startDate, endDate } = parseDateRange(schoolLine);
+    const school = schoolLine.replace(dateRangePattern, "").trim();
+    const [degree = "", fieldOfStudy = ""] = degreeLine.split(",").map((item) => item.trim());
+
+    entries.push({
+      id: `heuristic-edu-${entries.length + 1}`,
+      school,
+      degree,
+      fieldOfStudy,
+      startDate,
+      endDate,
+      description: "",
+      hasDifferentCountry: false,
+      country: ""
+    });
+  }
+
+  return entries;
 }
 
 function buildHeuristicImportedProfile(resumeText: string): ResumeProfileImport {
@@ -480,39 +725,20 @@ function buildHeuristicImportedProfile(resumeText: string): ResumeProfileImport 
   const secondLine = lines[1] ?? "";
   const email = findFirstMatch(text, /([A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,})/i);
   const phone = findFirstMatch(text, /(\+?\d[\d().\-\s]{7,}\d)/);
-  const skillsSection = extractSection(text, ["Skills", "Technical Skills", "Core Skills", "Technologies"]);
-  const summarySection = extractSection(text, ["Summary", "Professional Summary", "Profile", "Objective"]);
-  const educationSection = extractSection(text, ["Education", "Academic Background"]);
-  const certificationsSection = extractSection(text, ["Certifications", "Certificates", "Licenses"]);
-  const projectsSection = extractSection(text, ["Projects", "Awards", "Volunteer Experience", "Leadership", "Publications"]);
+  const sections = splitIntoSections(text);
   const links = Array.from(new Set((text.match(/https?:\/\/[^\s)]+/g) ?? []).map((item) => item.trim())));
 
-  const educationItems = educationSection
-    ? educationSection
-        .split(/\n{2,}/)
-        .map((block, index) => {
-          const blockLines = block.split("\n").map((line) => line.trim()).filter(Boolean);
-          if (blockLines.length === 0) {
-            return null;
-          }
+  const locationParts = secondLine.split("|").map((item) => item.trim()).filter(Boolean);
+  const locationCandidate = locationParts.find(
+    (item) => !item.includes("@") && !/\d/.test(item) && !item.toLowerCase().includes("linkedin")
+  );
+  const [city = "", state = "", country = ""] = (locationCandidate ?? "")
+    .split(",")
+    .map((item) => item.trim());
 
-          return {
-            id: `heuristic-edu-${index + 1}`,
-            school: blockLines[0] ?? "",
-            degree: blockLines[1] ?? "",
-            fieldOfStudy: "",
-            startDate: "",
-            endDate: "",
-            description: blockLines.slice(2).join(" "),
-            hasDifferentCountry: false,
-            country: ""
-          };
-        })
-        .filter((item): item is NonNullable<typeof item> => Boolean(item))
-    : [];
-
-  const certificationItems = certificationsSection
-    ? splitListItems(certificationsSection).map((item, index) => ({
+  const educationItems = parseEducationEntries(sections.education);
+  const certificationItems = sections.certifications.length
+    ? splitListItems(sections.certifications.join("\n")).map((item, index) => ({
         id: `heuristic-cert-${index + 1}`,
         name: item,
         issuer: "",
@@ -523,29 +749,44 @@ function buildHeuristicImportedProfile(resumeText: string): ResumeProfileImport 
       }))
     : [];
 
-  const customSections = projectsSection
+  const customSections = sections.projects.length
     ? [
         {
           id: "heuristic-section-projects",
           title: "Projects",
-          items: splitListItems(projectsSection)
+          items: splitBulletLines(sections.projects.join("\n"))
         }
       ]
     : [];
 
+  const skills = sections.skills.length
+    ? splitListItems(
+        sections.skills
+          .join("\n")
+          .replace(/Languages:\s*/gi, "")
+          .replace(/Frameworks\s*&\s*Tools:\s*/gi, "")
+          .replace(/Cloud\s*&\s*Infrastructure:\s*/gi, "")
+          .replace(/Databases:\s*/gi, "")
+          .replace(/Concepts:\s*/gi, "")
+      )
+    : [];
+
+  const experience = parseExperienceEntries(sections.experience);
+
   return sanitizeImportedProfile({
     fullName: firstLine && !firstLine.includes("@") && firstLine.length < 80 ? firstLine : "",
-    headline:
-      secondLine &&
-      !secondLine.includes("@") &&
-      !secondLine.toLowerCase().includes("linkedin") &&
-      secondLine.length < 80
-        ? secondLine
-        : "",
+    headline: experience[0]?.title || "",
     phoneNumber: phone,
-    summary: summarySection.split("\n").map((line) => line.trim()).filter(Boolean).join(" "),
+    summary: sections.summary.join(" ").replace(/\s+/g, " ").trim(),
     email,
-    skills: splitListItems(skillsSection),
+    address: {
+      ...createEmptyAddress(),
+      city,
+      state,
+      country
+    },
+    skills,
+    experience,
     education: educationItems,
     certifications: certificationItems,
     customSections,
@@ -618,115 +859,5 @@ export async function importProfileFromResumeText(resumeText: string, bindings: 
   if (normalizedResumeText.length < 80) {
     throw new Error("We could upload the file, but we could not extract enough readable text to import from it. Try a text-based PDF or DOCX.");
   }
-
-  const prompt = `
-Extract structured candidate information from this resume text.
-
-Return only valid JSON matching this exact shape:
-{
-  "fullName": "string",
-  "headline": "string",
-  "phoneNumber": "string",
-  "summary": "string",
-  "email": "string",
-  "address": {
-    "street1": "string",
-    "street2": "string",
-    "city": "string",
-    "state": "string",
-    "zipCode": "string",
-    "country": "string"
-  },
-  "skills": ["string"],
-  "experience": [
-    {
-      "id": "string",
-      "company": "string",
-      "title": "string",
-      "startDate": "YYYY-MM-DD or empty string",
-      "endDate": "YYYY-MM-DD or empty string",
-      "highlights": ["string"],
-      "technologies": ["string"]
-    }
-  ],
-  "education": [
-    {
-      "id": "string",
-      "school": "string",
-      "degree": "string",
-      "fieldOfStudy": "string",
-      "startDate": "YYYY-MM-DD or empty string",
-      "endDate": "YYYY-MM-DD or empty string",
-      "description": "string",
-      "hasDifferentCountry": true,
-      "country": "string"
-    }
-  ],
-  "certifications": [
-    {
-      "id": "string",
-      "name": "string",
-      "issuer": "string",
-      "issuedDate": "YYYY-MM-DD or empty string",
-      "expirationDate": "YYYY-MM-DD or empty string",
-      "credentialId": "string",
-      "url": "string"
-    }
-  ],
-  "customSections": [
-    {
-      "id": "string",
-      "title": "string",
-      "items": ["string"]
-    }
-  ],
-  "links": [
-    {
-      "id": "string",
-      "label": "string",
-      "url": "string"
-    }
-  ],
-  "notes": "string"
-}
-
-Rules:
-- Use only information present in the resume.
-- If a value is not available, use an empty string or empty array.
-- For dates, prefer YYYY-MM-DD when the day is known. If only month/year are known, use YYYY-MM-01. If unknown, use empty string.
-- Keep summaries concise and factual.
-- Skills should be distinct and useful.
-- Highlights should be short bullet-style statements.
-- Technologies should contain tools, languages, frameworks, or platforms.
-- Education should include degrees, schools, dates, and any short supporting detail when present.
-- If the education is in a different country from the candidate address and the resume makes that clear, set hasDifferentCountry to true and include the country.
-- Certifications should include issuer, dates, credential IDs, and links when present.
-- Use customSections for resume sections like projects, awards, volunteer work, leadership, publications, or activities when they do not fit elsewhere.
-- Do not wrap the JSON in markdown fences.
-
-Resume text:
-${normalizedResumeText}
-`.trim();
-
-  let response = "";
-
-  try {
-    response = await runGeminiPrompt(prompt, bindings);
-  } catch {
-    return heuristicImportedProfile;
-  }
-
-  const match = response.match(/\{[\s\S]*\}/);
-
-  if (!match) {
-    return heuristicImportedProfile;
-  }
-
-  try {
-    const aiImportedProfile = sanitizeImportedProfile(JSON.parse(match[0]) as Partial<ResumeProfileImport>);
-
-    return mergeImportedProfiles(aiImportedProfile, heuristicImportedProfile);
-  } catch {
-    return heuristicImportedProfile;
-  }
+  return heuristicImportedProfile;
 }
