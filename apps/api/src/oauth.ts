@@ -36,7 +36,20 @@ export function getOAuthProviders(c: Context<{ Bindings: AppBindings }>) {
 }
 
 export function getOAuthRedirectUrl(c: Context<{ Bindings: AppBindings }>, provider: OAuthProvider) {
-  return `${getBaseUrl(c)}/api/auth/${provider}/callback`;
+  const config = getConfig(c.env);
+  const baseUrl = getBaseUrl(c);
+
+  // If we're using a proxy in development (APP_ORIGIN is localhost but API is on another port),
+  // we must redirect back to the app's origin so the browser sends the state cookie.
+  if (
+    config.appOrigin &&
+    (config.appOrigin.includes("localhost") || config.appOrigin.includes("127.0.0.1")) &&
+    !baseUrl.includes(new URL(config.appOrigin).port)
+  ) {
+    return `${config.appOrigin}/api/auth/${provider}/callback`;
+  }
+
+  return `${baseUrl}/api/auth/${provider}/callback`;
 }
 
 export function buildAuthorizationUrl(c: Context<{ Bindings: AppBindings }>, provider: OAuthProvider) {

@@ -121,6 +121,13 @@ function resolveCookieSecure(c: Context<{ Bindings: AppBindings }>) {
 
 function resolveCookieSameSite(c: Context<{ Bindings: AppBindings }>) {
   const config = getConfig(c.env);
+  const url = new URL(c.req.url);
+
+  // Always use Lax on localhost to avoid SameSite=None requirements (which need HTTPS/Secure).
+  // This works well with the Vite proxy as the cookie will be seen as same-origin by the browser.
+  if (url.hostname === "localhost" || url.hostname === "127.0.0.1") {
+    return "Lax" as const;
+  }
 
   if (!config.appOrigin || !config.apiOrigin) {
     return "Lax" as const;

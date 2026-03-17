@@ -8,23 +8,30 @@ import AppShell from "@/views/AppShell.vue";
 const { auth, ui, bootstrap } = useApp();
 
 onMounted(() => {
-  const url = new URL(window.location.href);
-  const authState = url.searchParams.get("auth");
-  const authMessage = url.searchParams.get("message");
+  void (async () => {
+    const url = new URL(window.location.href);
+    const authState = url.searchParams.get("auth");
+    const authMessage = url.searchParams.get("message");
 
-  // if (authState === "error" && authMessage) {
-  //   auth.error = authMessage;
-  // } else if (authState === "success") {
-  //   ui.notice = "Signed in successfully.";
-  // }
+    if (authState === "error") {
+      auth.error = authMessage || "Sign-in could not be completed.";
+    } else if (authState === "success") {
+      ui.notice = "Signed in successfully.";
+    }
 
-  if (authState) {
-    url.searchParams.delete("auth");
-    url.searchParams.delete("message");
-    window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
-  }
+    if (authState) {
+      url.searchParams.delete("auth");
+      url.searchParams.delete("message");
+      window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+    }
 
-  void bootstrap();
+    await bootstrap();
+
+    if (authState === "success" && !auth.authenticated) {
+      auth.error = "Google sign-in finished, but the session cookie was not saved. This is usually a browser cookie or origin setup issue.";
+      ui.notice = "";
+    }
+  })();
 });
 </script>
 
