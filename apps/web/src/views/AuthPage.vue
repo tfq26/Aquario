@@ -60,6 +60,7 @@ const { auth, ui, login, beginOAuth } = useApp();
               <Label class="text-sm text-muted-foreground cursor-pointer">Keep me signed in</Label>
             </div>
             <p v-if="auth.error" class="text-sm text-primary">{{ auth.error }}</p>
+            <p v-if="ui.error" class="text-sm text-primary">{{ ui.error }}</p>
             <p v-if="!auth.configured" class="text-sm text-primary">
               Configure auth secrets before using the app.
             </p>
