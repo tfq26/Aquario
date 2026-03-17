@@ -420,7 +420,171 @@ function sanitizeImportedProfile(parsed: Partial<ResumeProfileImport>): ResumePr
   };
 }
 
+function normalizeResumeText(value: string) {
+  return value
+    .replace(/\u0000/g, "")
+    .replace(/\r/g, "")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+function findFirstMatch(value: string, pattern: RegExp) {
+  const match = value.match(pattern);
+  return match?.[1]?.trim() ?? "";
+}
+
+function splitListItems(value: string) {
+  return value
+    .split(/\n|,|•|·|\||;/)
+    .map((item) => item.replace(/^[-*]\s*/, "").trim())
+    .filter(Boolean);
+}
+
+function extractSection(text: string, headings: string[]) {
+  const escaped = headings.map((heading) => heading.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  const headingPattern = new RegExp(`^(?:${escaped.join("|")})\\s*:?\$`, "i");
+  const lines = text.split("\n");
+  const collected: string[] = [];
+  let active = false;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+
+    if (headingPattern.test(trimmed)) {
+      active = true;
+      continue;
+    }
+
+    if (
+      active &&
+      /^[A-Z][A-Za-z/& ,()-]{2,40}\s*:?$/.test(trimmed) &&
+      !trimmed.includes("@") &&
+      trimmed.toLowerCase() !== trimmed
+    ) {
+      break;
+    }
+
+    if (active) {
+      collected.push(line);
+    }
+  }
+
+  return collected.join("\n").trim();
+}
+
+function buildHeuristicImportedProfile(resumeText: string): ResumeProfileImport {
+  const text = normalizeResumeText(resumeText);
+  const lines = text.split("\n").map((line) => line.trim()).filter(Boolean);
+  const firstLine = lines[0] ?? "";
+  const secondLine = lines[1] ?? "";
+  const email = findFirstMatch(text, /([A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,})/i);
+  const phone = findFirstMatch(text, /(\+?\d[\d().\-\s]{7,}\d)/);
+  const skillsSection = extractSection(text, ["Skills", "Technical Skills", "Core Skills", "Technologies"]);
+  const summarySection = extractSection(text, ["Summary", "Professional Summary", "Profile", "Objective"]);
+  const educationSection = extractSection(text, ["Education", "Academic Background"]);
+  const certificationsSection = extractSection(text, ["Certifications", "Certificates", "Licenses"]);
+  const projectsSection = extractSection(text, ["Projects", "Awards", "Volunteer Experience", "Leadership", "Publications"]);
+  const links = Array.from(new Set((text.match(/https?:\/\/[^\s)]+/g) ?? []).map((item) => item.trim())));
+
+  const educationItems = educationSection
+    ? educationSection
+        .split(/\n{2,}/)
+        .map((block, index) => {
+          const blockLines = block.split("\n").map((line) => line.trim()).filter(Boolean);
+          if (blockLines.length === 0) {
+            return null;
+          }
+
+          return {
+            id: `heuristic-edu-${index + 1}`,
+            school: blockLines[0] ?? "",
+            degree: blockLines[1] ?? "",
+            fieldOfStudy: "",
+            startDate: "",
+            endDate: "",
+            description: blockLines.slice(2).join(" "),
+            hasDifferentCountry: false,
+            country: ""
+          };
+        })
+        .filter((item): item is NonNullable<typeof item> => Boolean(item))
+    : [];
+
+  const certificationItems = certificationsSection
+    ? splitListItems(certificationsSection).map((item, index) => ({
+        id: `heuristic-cert-${index + 1}`,
+        name: item,
+        issuer: "",
+        issuedDate: "",
+        expirationDate: "",
+        credentialId: "",
+        url: ""
+      }))
+    : [];
+
+  const customSections = projectsSection
+    ? [
+        {
+          id: "heuristic-section-projects",
+          title: "Projects",
+          items: splitListItems(projectsSection)
+        }
+      ]
+    : [];
+
+  return sanitizeImportedProfile({
+    fullName: firstLine && !firstLine.includes("@") && firstLine.length < 80 ? firstLine : "",
+    headline:
+      secondLine &&
+      !secondLine.includes("@") &&
+      !secondLine.toLowerCase().includes("linkedin") &&
+      secondLine.length < 80
+        ? secondLine
+        : "",
+    phoneNumber: phone,
+    summary: summarySection.split("\n").map((line) => line.trim()).filter(Boolean).join(" "),
+    email,
+    skills: splitListItems(skillsSection),
+    education: educationItems,
+    certifications: certificationItems,
+    customSections,
+    links: links.map((url, index) => ({
+      id: `heuristic-link-${index + 1}`,
+      label: url.includes("linkedin.com") ? "LinkedIn" : url.includes("github.com") ? "GitHub" : "Link",
+      url
+    }))
+  });
+}
+
+function mergeImportedProfiles(primary: ResumeProfileImport, fallback: ResumeProfileImport): ResumeProfileImport {
+  return sanitizeImportedProfile({
+    fullName: primary.fullName || fallback.fullName,
+    headline: primary.headline || fallback.headline,
+    phoneNumber: primary.phoneNumber || fallback.phoneNumber,
+    summary: primary.summary || fallback.summary,
+    email: primary.email || fallback.email,
+    address: {
+      ...fallback.address,
+      ...primary.address
+    },
+    skills: Array.from(new Set([...primary.skills, ...fallback.skills])),
+    experience: primary.experience.length ? primary.experience : fallback.experience,
+    education: primary.education.length ? primary.education : fallback.education,
+    certifications: primary.certifications.length ? primary.certifications : fallback.certifications,
+    customSections: primary.customSections.length ? primary.customSections : fallback.customSections,
+    links: primary.links.length ? primary.links : fallback.links,
+    notes: primary.notes || fallback.notes
+  });
+}
+
 export async function importProfileFromResumeText(resumeText: string, bindings: AppBindings = {}) {
+  const normalizedResumeText = normalizeResumeText(resumeText);
+
+  if (normalizedResumeText.length < 80) {
+    throw new Error("We could upload the file, but we could not extract enough readable text to import from it. Try a text-based PDF or DOCX.");
+  }
+
   const prompt = `
 Extract structured candidate information from this resume text.
 
@@ -507,15 +671,18 @@ Rules:
 - Do not wrap the JSON in markdown fences.
 
 Resume text:
-${resumeText}
+${normalizedResumeText}
 `.trim();
 
   const response = await runGeminiPrompt(prompt, bindings);
   const match = response.match(/\{[\s\S]*\}/);
 
   if (!match) {
-    throw new Error("Resume import did not return structured JSON.");
+    return buildHeuristicImportedProfile(normalizedResumeText);
   }
 
-  return sanitizeImportedProfile(JSON.parse(match[0]) as Partial<ResumeProfileImport>);
+  const aiImportedProfile = sanitizeImportedProfile(JSON.parse(match[0]) as Partial<ResumeProfileImport>);
+  const heuristicImportedProfile = buildHeuristicImportedProfile(normalizedResumeText);
+
+  return mergeImportedProfiles(aiImportedProfile, heuristicImportedProfile);
 }

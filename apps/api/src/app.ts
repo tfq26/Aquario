@@ -136,6 +136,15 @@ export function createApp() {
     remember: z.boolean().optional()
   });
 
+  const hasMeaningfulEducation = (items: Array<{ school: string; degree: string; description: string }>) =>
+    items.some((item) => item.school.trim() || item.degree.trim() || item.description.trim());
+
+  const hasMeaningfulCertifications = (items: Array<{ name: string; issuer: string; credentialId: string }>) =>
+    items.some((item) => item.name.trim() || item.issuer.trim() || item.credentialId.trim());
+
+  const hasMeaningfulCustomSections = (items: Array<{ title: string; items: string[] }>) =>
+    items.some((item) => item.title.trim() || item.items.some((entry) => entry.trim()));
+
   app.post("/api/auth/login", async (c) => {
     const payload = authSchema.parse(await c.req.json());
     const config = getConfig(c.env);
@@ -313,11 +322,11 @@ export function createApp() {
       country: data.profile.address.country || importedProfile.address.country
     };
     data.profile.skills = Array.from(new Set([...data.profile.skills, ...importedProfile.skills]));
-    data.profile.education = data.profile.education.length ? data.profile.education : importedProfile.education;
-    data.profile.certifications = data.profile.certifications.length
+    data.profile.education = hasMeaningfulEducation(data.profile.education) ? data.profile.education : importedProfile.education;
+    data.profile.certifications = hasMeaningfulCertifications(data.profile.certifications)
       ? data.profile.certifications
       : importedProfile.certifications;
-    data.profile.customSections = data.profile.customSections.length
+    data.profile.customSections = hasMeaningfulCustomSections(data.profile.customSections)
       ? data.profile.customSections
       : importedProfile.customSections;
     data.profile.links = data.profile.links.length

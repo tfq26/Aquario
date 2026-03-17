@@ -9,7 +9,7 @@
 		"APP_ORIGIN": "http://localhost:5173",
 		"API_ORIGIN": "http://localhost:8787",
 		"COOKIE_SECURE": "false",
-		"GEMINI_MODEL": "gemini-3.1-flash",
+		"GEMINI_MODEL": "gemini-2.5-flash",
 		"AUTH_PASSWORD": "clEkNaZSUxyQR3NheDDhck25d3DLD"
 	},
 	"d1_databases": [
@@ -32,7 +32,7 @@
 				"APP_ORIGIN": "https://aquario.pages.dev",
 				"API_ORIGIN": "https://aquario-api-production.aquario-api.workers.dev",
 				"COOKIE_SECURE": "true",
-				"GEMINI_MODEL": "gemini-3.1-flash"
+				"GEMINI_MODEL": "gemini-2.5-flash"
 			},
 			"d1_databases": [
 				{
