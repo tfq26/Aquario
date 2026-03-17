@@ -580,6 +580,7 @@ function mergeImportedProfiles(primary: ResumeProfileImport, fallback: ResumePro
 
 export async function importProfileFromResumeText(resumeText: string, bindings: AppBindings = {}) {
   const normalizedResumeText = normalizeResumeText(resumeText);
+  const heuristicImportedProfile = buildHeuristicImportedProfile(normalizedResumeText);
 
   if (normalizedResumeText.length < 80) {
     throw new Error("We could upload the file, but we could not extract enough readable text to import from it. Try a text-based PDF or DOCX.");
@@ -674,15 +675,25 @@ Resume text:
 ${normalizedResumeText}
 `.trim();
 
-  const response = await runGeminiPrompt(prompt, bindings);
+  let response = "";
+
+  try {
+    response = await runGeminiPrompt(prompt, bindings);
+  } catch {
+    return heuristicImportedProfile;
+  }
+
   const match = response.match(/\{[\s\S]*\}/);
 
   if (!match) {
-    return buildHeuristicImportedProfile(normalizedResumeText);
+    return heuristicImportedProfile;
   }
 
-  const aiImportedProfile = sanitizeImportedProfile(JSON.parse(match[0]) as Partial<ResumeProfileImport>);
-  const heuristicImportedProfile = buildHeuristicImportedProfile(normalizedResumeText);
+  try {
+    const aiImportedProfile = sanitizeImportedProfile(JSON.parse(match[0]) as Partial<ResumeProfileImport>);
 
-  return mergeImportedProfiles(aiImportedProfile, heuristicImportedProfile);
+    return mergeImportedProfiles(aiImportedProfile, heuristicImportedProfile);
+  } catch {
+    return heuristicImportedProfile;
+  }
 }

@@ -296,54 +296,60 @@ export function createApp() {
   });
 
   app.post("/api/resume/import", async (c) => {
-    const form = await c.req.formData();
-    const file = form.get("resume");
+    try {
+      const form = await c.req.formData();
+      const file = form.get("resume");
 
-    if (!(file instanceof File)) {
-      return c.json({ error: "Resume file is required" }, 400);
+      if (!(file instanceof File)) {
+        return c.json({ error: "Resume file is required" }, 400);
+      }
+
+      const resumeAsset = await persistResume(file, c.env.RESUME_BUCKET);
+      const importedProfile = await importProfileFromResumeText(resumeAsset.extractedText, c.env);
+      const data = await readStore(c.env);
+
+      data.resumeAsset = resumeAsset;
+      data.profile.fullName = data.profile.fullName || importedProfile.fullName;
+      data.profile.headline = data.profile.headline || importedProfile.headline;
+      data.profile.phoneNumber = data.profile.phoneNumber || importedProfile.phoneNumber;
+      data.profile.summary = data.profile.summary || importedProfile.summary;
+      data.profile.email = data.profile.email || importedProfile.email;
+      data.profile.address = {
+        street1: data.profile.address.street1 || importedProfile.address.street1,
+        street2: data.profile.address.street2 || importedProfile.address.street2,
+        city: data.profile.address.city || importedProfile.address.city,
+        state: data.profile.address.state || importedProfile.address.state,
+        zipCode: data.profile.address.zipCode || importedProfile.address.zipCode,
+        country: data.profile.address.country || importedProfile.address.country
+      };
+      data.profile.skills = Array.from(new Set([...data.profile.skills, ...importedProfile.skills]));
+      data.profile.education = hasMeaningfulEducation(data.profile.education) ? data.profile.education : importedProfile.education;
+      data.profile.certifications = hasMeaningfulCertifications(data.profile.certifications)
+        ? data.profile.certifications
+        : importedProfile.certifications;
+      data.profile.customSections = hasMeaningfulCustomSections(data.profile.customSections)
+        ? data.profile.customSections
+        : importedProfile.customSections;
+      data.profile.links = data.profile.links.length
+        ? data.profile.links
+        : importedProfile.links.filter((link) => link.url);
+      data.profile.notes = data.profile.notes || importedProfile.notes;
+
+      if (importedProfile.experience.length > 0) {
+        data.profile.experience = importedProfile.experience;
+      }
+
+      await writeStore(data, c.env);
+
+      return c.json({
+        resumeAsset,
+        profile: data.profile
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Resume import failed.";
+      const status = message.includes("could not extract enough readable text") ? 422 : 500;
+      return c.json({ error: message }, status);
     }
-
-    const resumeAsset = await persistResume(file, c.env.RESUME_BUCKET);
-    const importedProfile = await importProfileFromResumeText(resumeAsset.extractedText, c.env);
-    const data = await readStore(c.env);
-
-    data.resumeAsset = resumeAsset;
-    data.profile.fullName = data.profile.fullName || importedProfile.fullName;
-    data.profile.headline = data.profile.headline || importedProfile.headline;
-    data.profile.phoneNumber = data.profile.phoneNumber || importedProfile.phoneNumber;
-    data.profile.summary = data.profile.summary || importedProfile.summary;
-    data.profile.email = data.profile.email || importedProfile.email;
-    data.profile.address = {
-      street1: data.profile.address.street1 || importedProfile.address.street1,
-      street2: data.profile.address.street2 || importedProfile.address.street2,
-      city: data.profile.address.city || importedProfile.address.city,
-      state: data.profile.address.state || importedProfile.address.state,
-      zipCode: data.profile.address.zipCode || importedProfile.address.zipCode,
-      country: data.profile.address.country || importedProfile.address.country
-    };
-    data.profile.skills = Array.from(new Set([...data.profile.skills, ...importedProfile.skills]));
-    data.profile.education = hasMeaningfulEducation(data.profile.education) ? data.profile.education : importedProfile.education;
-    data.profile.certifications = hasMeaningfulCertifications(data.profile.certifications)
-      ? data.profile.certifications
-      : importedProfile.certifications;
-    data.profile.customSections = hasMeaningfulCustomSections(data.profile.customSections)
-      ? data.profile.customSections
-      : importedProfile.customSections;
-    data.profile.links = data.profile.links.length
-      ? data.profile.links
-      : importedProfile.links.filter((link) => link.url);
-    data.profile.notes = data.profile.notes || importedProfile.notes;
-
-    if (importedProfile.experience.length > 0) {
-      data.profile.experience = importedProfile.experience;
-    }
-
-    await writeStore(data, c.env);
-
-    return c.json({
-      resumeAsset,
-      profile: data.profile
-    });
   });
 
   app.post("/api/github/sync", async (c) => {
