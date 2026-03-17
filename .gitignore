@@ -2,5 +2,7 @@ node_modules/
 dist/
 .env
 .env.local
+.wrangler/
+apps/web/.wrangler/
 apps/api/data/
 apps/api/uploads/
