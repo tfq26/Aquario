@@ -1,6 +1,16 @@
 import { computed, reactive, ref } from "vue";
 import type { AppState, AuthUser, GeneratedDocument, RepoContext, ResumeAsset } from "@/types";
 
+const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/$/, "");
+
+function withApiBase(path: string) {
+  if (!apiBaseUrl) {
+    return path;
+  }
+
+  return `${apiBaseUrl}${path.startsWith("/") ? path : `/${path}`}`;
+}
+
 const headlineOptions = [
   "University Student",
   "High School Student",
@@ -157,7 +167,7 @@ export function useApp() {
   }
 
   async function api<T>(path: string, init?: RequestInit) {
-    const response = await fetch(path, {
+    const response = await fetch(withApiBase(path), {
       credentials: "include",
       headers: {
         "Content-Type": "application/json",
@@ -254,7 +264,7 @@ export function useApp() {
   }
 
   function beginOAuth(provider: "github" | "google") {
-    window.location.href = `/api/auth/${provider}/login`;
+    window.location.href = withApiBase(`/api/auth/${provider}/login`);
   }
 
   async function saveProfile() {
@@ -330,7 +340,7 @@ export function useApp() {
       const formData = new FormData();
       formData.set("resume", selectedResumeFile.value);
 
-      const response = await fetch("/api/resume/upload", {
+      const response = await fetch(withApiBase("/api/resume/upload"), {
         method: "POST",
         body: formData,
         credentials: "include"
@@ -363,7 +373,7 @@ export function useApp() {
       const formData = new FormData();
       formData.set("resume", selectedResumeFile.value);
 
-      const response = await fetch("/api/resume/import", {
+      const response = await fetch(withApiBase("/api/resume/import"), {
         method: "POST",
         body: formData,
         credentials: "include"

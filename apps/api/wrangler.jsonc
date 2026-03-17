@@ -26,10 +26,25 @@
     "production": {
       "vars": {
         "APP_ORIGIN": "https://d974f8b2.aquario-web.pages.dev",
-        "API_ORIGIN": "https://aquario-api.aquario-api.workers.dev",
+        "API_ORIGIN": "https://aquario-api-production.aquario-api.workers.dev",
         "COOKIE_SECURE": "true",
         "GEMINI_MODEL": "gemini-3.1-flash"
       }
+    }
+  },
+  "observability": {
+    "enabled": false,
+    "head_sampling_rate": 1,
+    "logs": {
+      "enabled": true,
+      "head_sampling_rate": 1,
+      "persist": true,
+      "invocation_logs": true
+    },
+    "traces": {
+      "enabled": true,
+      "persist": true,
+      "head_sampling_rate": 1
     }
   }
 }

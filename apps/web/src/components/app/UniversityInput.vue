@@ -2,6 +2,8 @@
 import { computed, ref, watch } from "vue";
 import { Input } from "@/components/ui/input";
 
+const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? window.location.origin).replace(/\/$/, "");
+
 const props = defineProps<{
   modelValue: string;
   country: string;
@@ -34,7 +36,7 @@ async function loadSuggestions(query: string) {
   loading.value = true;
 
   try {
-    const url = new URL("/api/universities/search", window.location.origin);
+    const url = new URL("/api/universities/search", apiBaseUrl);
     url.searchParams.set("country", props.country.trim());
 
     if (query.trim()) {
