@@ -4,6 +4,7 @@ import { z } from "zod";
 import {
   clearOAuthStateCookie,
   clearSessionCookie,
+  issueSessionToken,
   readOAuthState,
   readSession,
   requireAuth,
@@ -33,6 +34,7 @@ export function createApp() {
 
         return configuredOrigin || origin;
       },
+      allowHeaders: ["Content-Type", "Authorization"],
       credentials: true
     })
   );
@@ -146,8 +148,20 @@ export function createApp() {
       return c.json({ error: "Invalid password" }, 401);
     }
 
-    await setSessionCookie(c, payload.remember ?? false, { provider: "password", email: payload.email });
-    return c.json({ authenticated: true });
+    const session = { provider: "password" as const, email: payload.email };
+    const token = await issueSessionToken(c, payload.remember ?? false, session);
+    await setSessionCookie(c, payload.remember ?? false, session);
+
+    return c.json({
+      authenticated: true,
+      token,
+      user: {
+        provider: "password",
+        email: payload.email ?? "",
+        name: "",
+        avatarUrl: ""
+      }
+    });
   });
 
   app.get("/api/auth/:provider/login", async (c) => {
@@ -180,14 +194,16 @@ export function createApp() {
 
     try {
       const user = await exchangeCodeForUser(c, provider, code);
-      await setSessionCookie(c, true, {
+      const session = {
         provider,
         email: user.email,
         name: user.name,
         avatarUrl: user.avatarUrl
-      });
+      };
+      const token = await issueSessionToken(c, true, session);
+      await setSessionCookie(c, true, session);
       clearOAuthStateCookie(c);
-      return c.redirect(buildAppRedirect(c, true));
+      return c.redirect(buildAppRedirect(c, true, undefined, token));
     } catch (error) {
       clearOAuthStateCookie(c);
       const message = error instanceof Error ? error.message : "OAuth sign-in failed.";

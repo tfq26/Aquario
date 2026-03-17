@@ -49,6 +49,17 @@ async function verifyValue(value: string, signature: string, secret: string) {
   return crypto.subtle.verify("HMAC", key, fromBase64Url(signature), encoder.encode(value));
 }
 
+function getBearerToken(c: Context<{ Bindings: AppBindings }>) {
+  const authorization = c.req.header("Authorization");
+
+  if (!authorization) {
+    return null;
+  }
+
+  const match = authorization.match(/^Bearer\s+(.+)$/i);
+  return match?.[1] ?? null;
+}
+
 export async function createSignedToken<T extends { exp: number }>(payload: T, secret: string) {
   const payloadValue = toBase64Url(encoder.encode(JSON.stringify(payload)));
   const signature = await signValue(payloadValue, secret);
@@ -78,19 +89,7 @@ export async function readSignedToken<T extends { exp: number }>(token: string, 
 }
 
 export async function hasValidSession(c: Context<{ Bindings: AppBindings }>) {
-  const config = getConfig(c.env);
-
-  if (!config.authSecret) {
-    return false;
-  }
-
-  const token = getCookie(c, sessionCookieName);
-
-  if (!token) {
-    return false;
-  }
-
-  return Boolean(await readSignedToken<SessionPayload>(token, config.authSecret));
+  return Boolean(await readSession(c));
 }
 
 export async function readSession(c: Context<{ Bindings: AppBindings }>) {
@@ -100,7 +99,7 @@ export async function readSession(c: Context<{ Bindings: AppBindings }>) {
     return null;
   }
 
-  const token = getCookie(c, sessionCookieName);
+  const token = getBearerToken(c) ?? getCookie(c, sessionCookieName);
 
   if (!token) {
     return null;
@@ -150,22 +149,37 @@ function resolveCookieSameSite(c: Context<{ Bindings: AppBindings }>) {
 export async function requireAuth(c: Context<{ Bindings: AppBindings }>, next: Next) {
   const config = getConfig(c.env);
 
-  if (!config.authPassword || !config.authSecret) {
+  if (!config.authSecret) {
     return c.json(
       {
-        error: "Authentication is not configured. Set AUTH_PASSWORD and AUTH_SECRET."
+        error: "Authentication is not configured. Set AUTH_SECRET and at least one auth provider."
       },
       500
     );
   }
 
-  const token = getCookie(c, sessionCookieName);
-
-  if (!token || !(await readSignedToken<SessionPayload>(token, config.authSecret))) {
+  if (!(await readSession(c))) {
     return c.json({ error: "Unauthorized" }, 401);
   }
 
   await next();
+}
+
+export async function issueSessionToken(
+  c: Context<{ Bindings: AppBindings }>,
+  remember: boolean,
+  session: Omit<SessionPayload, "exp">
+) {
+  const config = getConfig(c.env);
+  const maxAge = remember ? 60 * 60 * 24 * 14 : 60 * 60 * 12;
+
+  return createSignedToken<SessionPayload>(
+    {
+      ...session,
+      exp: Math.floor(Date.now() / 1000) + maxAge
+    },
+    config.authSecret
+  );
 }
 
 export async function setSessionCookie(
@@ -173,15 +187,8 @@ export async function setSessionCookie(
   remember: boolean,
   session: Omit<SessionPayload, "exp">
 ) {
-  const config = getConfig(c.env);
   const maxAge = remember ? 60 * 60 * 24 * 14 : 60 * 60 * 12;
-  const token = await createSignedToken<SessionPayload>(
-    {
-      ...session,
-      exp: Math.floor(Date.now() / 1000) + maxAge
-    },
-    config.authSecret
-  );
+  const token = await issueSessionToken(c, remember, session);
 
   setCookie(c, sessionCookieName, token, {
     httpOnly: true,

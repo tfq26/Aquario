@@ -194,15 +194,28 @@ export async function exchangeCodeForUser(
   return exchangeGoogleCode(c, code);
 }
 
-export function buildAppRedirect(c: Context<{ Bindings: AppBindings }>, success: boolean, message?: string) {
+export function buildAppRedirect(
+  c: Context<{ Bindings: AppBindings }>,
+  success: boolean,
+  message?: string,
+  token?: string
+) {
   const config = getConfig(c.env);
   const base = config.appOrigin || new URL(c.req.url).origin;
   const url = new URL(base);
-  url.searchParams.set("auth", success ? "success" : "error");
+
+  const hashParams = new URLSearchParams();
+  hashParams.set("auth", success ? "success" : "error");
 
   if (message) {
-    url.searchParams.set("message", message);
+    hashParams.set("message", message);
   }
+
+  if (token) {
+    hashParams.set("token", token);
+  }
+
+  url.hash = hashParams.toString();
 
   return url.toString();
 }

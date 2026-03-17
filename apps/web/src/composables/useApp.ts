@@ -2,6 +2,7 @@ import { computed, reactive, ref } from "vue";
 import type { AppState, AuthUser, GeneratedDocument, RepoContext, ResumeAsset } from "@/types";
 
 const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/$/, "");
+const authTokenStorageKey = "aquario_auth_token";
 
 function withApiBase(path: string) {
   if (!apiBaseUrl) {
@@ -9,6 +10,30 @@ function withApiBase(path: string) {
   }
 
   return `${apiBaseUrl}${path.startsWith("/") ? path : `/${path}`}`;
+}
+
+function readStoredAuthToken() {
+  if (typeof window === "undefined") {
+    return "";
+  }
+
+  return window.localStorage.getItem(authTokenStorageKey) ?? "";
+}
+
+const authToken = ref(readStoredAuthToken());
+
+function setAuthToken(token: string) {
+  authToken.value = token;
+
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  if (token) {
+    window.localStorage.setItem(authTokenStorageKey, token);
+  } else {
+    window.localStorage.removeItem(authTokenStorageKey);
+  }
 }
 
 const headlineOptions = [
@@ -167,12 +192,19 @@ export function useApp() {
   }
 
   async function api<T>(path: string, init?: RequestInit) {
+    const headers = new Headers(init?.headers ?? {});
+
+    if (!headers.has("Content-Type") && !(init?.body instanceof FormData)) {
+      headers.set("Content-Type", "application/json");
+    }
+
+    if (authToken.value) {
+      headers.set("Authorization", `Bearer ${authToken.value}`);
+    }
+
     const response = await fetch(withApiBase(path), {
       credentials: "include",
-      headers: {
-        "Content-Type": "application/json",
-        ...(init?.headers ?? {})
-      },
+      headers,
       ...init
     });
 
@@ -204,6 +236,10 @@ export function useApp() {
     auth.configured = session.configured;
     auth.providers = session.providers;
     auth.user = session.user;
+
+     if (!session.authenticated && authToken.value) {
+      setAuthToken("");
+    }
   }
 
   async function loadState() {
@@ -236,7 +272,11 @@ export function useApp() {
     auth.error = "";
 
     try {
-      await api("/api/auth/login", {
+      const result = await api<{
+        authenticated: boolean;
+        token: string;
+        user: AuthUser;
+      }>("/api/auth/login", {
         method: "POST",
         body: JSON.stringify({
           email: auth.email,
@@ -244,6 +284,7 @@ export function useApp() {
           remember: auth.remember
         })
       });
+      setAuthToken(result.token);
       auth.password = "";
       await loadSession();
       await loadState();
@@ -255,7 +296,11 @@ export function useApp() {
   }
 
   async function logout() {
-    await api("/api/auth/logout", { method: "POST" });
+    try {
+      await api("/api/auth/logout", { method: "POST" });
+    } finally {
+      setAuthToken("");
+    }
     auth.authenticated = false;
     auth.user = null;
     ui.currentPage = "dashboard";
@@ -265,6 +310,10 @@ export function useApp() {
 
   function beginOAuth(provider: "github" | "google") {
     window.location.href = withApiBase(`/api/auth/${provider}/login`);
+  }
+
+  function storeOAuthToken(token: string) {
+    setAuthToken(token);
   }
 
   async function saveProfile() {
@@ -565,6 +614,7 @@ export function useApp() {
     login,
     logout,
     beginOAuth,
+    storeOAuthToken,
     saveProfile,
     saveJob,
     syncGithub,

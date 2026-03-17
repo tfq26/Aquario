@@ -5,13 +5,19 @@ import AuthPage from "@/views/AuthPage.vue";
 import OnboardingWizard from "@/views/OnboardingWizard.vue";
 import AppShell from "@/views/AppShell.vue";
 
-const { auth, ui, bootstrap } = useApp();
+const { auth, ui, bootstrap, storeOAuthToken } = useApp();
 
 onMounted(() => {
   void (async () => {
     const url = new URL(window.location.href);
-    const authState = url.searchParams.get("auth");
-    const authMessage = url.searchParams.get("message");
+    const hashParams = new URLSearchParams(url.hash.startsWith("#") ? url.hash.slice(1) : url.hash);
+    const authState = hashParams.get("auth") ?? url.searchParams.get("auth");
+    const authMessage = hashParams.get("message") ?? url.searchParams.get("message");
+    const authToken = hashParams.get("token");
+
+    if (authToken) {
+      storeOAuthToken(authToken);
+    }
 
     if (authState === "error") {
       auth.error = authMessage || "Sign-in could not be completed.";
@@ -22,6 +28,7 @@ onMounted(() => {
     if (authState) {
       url.searchParams.delete("auth");
       url.searchParams.delete("message");
+      url.hash = "";
       window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
     }
 
