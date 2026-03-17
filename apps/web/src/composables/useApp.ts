@@ -1,8 +1,8 @@
 import { computed, reactive, ref } from "vue";
 import type { AppState, AuthUser, GeneratedDocument, RepoContext, ResumeAsset } from "@/types";
+import { createAuthorizedHeaders, getStoredAuthToken, setStoredAuthToken } from "@/lib/auth-client";
 
 const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/$/, "");
-const authTokenStorageKey = "aquario_auth_token";
 
 function withApiBase(path: string) {
   if (!apiBaseUrl) {
@@ -12,28 +12,11 @@ function withApiBase(path: string) {
   return `${apiBaseUrl}${path.startsWith("/") ? path : `/${path}`}`;
 }
 
-function readStoredAuthToken() {
-  if (typeof window === "undefined") {
-    return "";
-  }
-
-  return window.localStorage.getItem(authTokenStorageKey) ?? "";
-}
-
-const authToken = ref(readStoredAuthToken());
+const authToken = ref(getStoredAuthToken());
 
 function setAuthToken(token: string) {
   authToken.value = token;
-
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  if (token) {
-    window.localStorage.setItem(authTokenStorageKey, token);
-  } else {
-    window.localStorage.removeItem(authTokenStorageKey);
-  }
+  setStoredAuthToken(token);
 }
 
 const headlineOptions = [
@@ -192,14 +175,10 @@ export function useApp() {
   }
 
   async function api<T>(path: string, init?: RequestInit) {
-    const headers = new Headers(init?.headers ?? {});
+    const headers = createAuthorizedHeaders(init?.headers ?? {});
 
     if (!headers.has("Content-Type") && !(init?.body instanceof FormData)) {
       headers.set("Content-Type", "application/json");
-    }
-
-    if (authToken.value) {
-      headers.set("Authorization", `Bearer ${authToken.value}`);
     }
 
     const response = await fetch(withApiBase(path), {
@@ -392,6 +371,7 @@ export function useApp() {
       const response = await fetch(withApiBase("/api/resume/upload"), {
         method: "POST",
         body: formData,
+        headers: createAuthorizedHeaders(),
         credentials: "include"
       });
 
@@ -425,6 +405,7 @@ export function useApp() {
       const response = await fetch(withApiBase("/api/resume/import"), {
         method: "POST",
         body: formData,
+        headers: createAuthorizedHeaders(),
         credentials: "include"
       });
 

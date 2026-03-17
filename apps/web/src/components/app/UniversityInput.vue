@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { Input } from "@/components/ui/input";
+import { createAuthorizedHeaders } from "@/lib/auth-client";
 
 const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? window.location.origin).replace(/\/$/, "");
 
@@ -44,6 +45,7 @@ async function loadSuggestions(query: string) {
     }
 
     const response = await fetch(url.toString(), {
+      headers: createAuthorizedHeaders(),
       credentials: "include",
       signal: activeController.signal
     });
