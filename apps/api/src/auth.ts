@@ -119,6 +119,27 @@ function resolveCookieSecure(c: Context<{ Bindings: AppBindings }>) {
   return new URL(c.req.url).protocol === "https:";
 }
 
+function resolveCookieSameSite(c: Context<{ Bindings: AppBindings }>) {
+  const config = getConfig(c.env);
+
+  if (!config.appOrigin || !config.apiOrigin) {
+    return "Lax" as const;
+  }
+
+  try {
+    const appUrl = new URL(config.appOrigin);
+    const apiUrl = new URL(config.apiOrigin);
+
+    if (appUrl.origin !== apiUrl.origin) {
+      return "None" as const;
+    }
+  } catch {
+    return "Lax" as const;
+  }
+
+  return "Lax" as const;
+}
+
 export async function requireAuth(c: Context<{ Bindings: AppBindings }>, next: Next) {
   const config = getConfig(c.env);
 
@@ -157,7 +178,7 @@ export async function setSessionCookie(
 
   setCookie(c, sessionCookieName, token, {
     httpOnly: true,
-    sameSite: "Lax",
+    sameSite: resolveCookieSameSite(c),
     secure: resolveCookieSecure(c),
     path: "/",
     maxAge
@@ -186,7 +207,7 @@ export async function setOAuthStateCookie(
 
   setCookie(c, oauthStateCookieName, token, {
     httpOnly: true,
-    sameSite: "Lax",
+    sameSite: resolveCookieSameSite(c),
     secure: resolveCookieSecure(c),
     path: "/",
     maxAge
