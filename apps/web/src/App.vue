@@ -4,6 +4,7 @@ import { useApp } from "@/composables/useApp";
 import AuthPage from "@/views/AuthPage.vue";
 import OnboardingWizard from "@/views/OnboardingWizard.vue";
 import AppShell from "@/views/AppShell.vue";
+import BootScreen from "@/views/BootScreen.vue";
 
 const { auth, ui, bootstrap, storeOAuthToken } = useApp();
 
@@ -44,7 +45,9 @@ onMounted(() => {
 
 <template>
   <main class="min-h-screen bg-background text-foreground">
+    <BootScreen v-if="ui.bootstrapping || auth.loading || ui.pageLoading" :message="ui.pageLoading ? ui.pageLoadingLabel : 'Getting your workspace ready.'" />
     <div
+      v-else
       class="w-full max-w-none px-4 py-6 sm:px-6 lg:px-8"
       :class="[
         !auth.authenticated ? 'flex min-h-[calc(100vh-3rem)] flex-col justify-center' : ''

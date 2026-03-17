@@ -95,6 +95,8 @@ const auth = reactive({
 
 const ui = reactive({
   bootstrapping: true,
+  pageLoading: false,
+  pageLoadingLabel: "Getting your workspace ready.",
   currentPage: "dashboard" as "dashboard" | "profile",
   wizardStep: 0,
   onboardingActive: false,
@@ -225,6 +227,28 @@ export function useApp() {
     applyState(await api<AppState>("/api/state"));
   }
 
+  async function navigateToPage(page: "dashboard" | "profile") {
+    if (ui.currentPage === page && !ui.pageLoading) {
+      return;
+    }
+
+    ui.pageLoading = true;
+    ui.pageLoadingLabel = page === "profile" ? "Loading your profile details." : "Loading your workspace.";
+
+    try {
+      await Promise.all([
+        auth.authenticated ? loadState() : Promise.resolve(),
+        new Promise((resolve) => window.setTimeout(resolve, 320))
+      ]);
+      ui.currentPage = page;
+    } catch (error) {
+      ui.error = error instanceof Error ? error.message : "Unable to load that page.";
+    } finally {
+      ui.pageLoading = false;
+      ui.pageLoadingLabel = "Getting your workspace ready.";
+    }
+  }
+
   async function bootstrap() {
     ui.bootstrapping = true;
     auth.loading = true;
@@ -285,6 +309,7 @@ export function useApp() {
     ui.currentPage = "dashboard";
     ui.wizardStep = 0;
     ui.onboardingActive = false;
+    ui.pageLoading = false;
   }
 
   function beginOAuth(provider: "github" | "google") {
@@ -560,11 +585,15 @@ export function useApp() {
     await saveProfile();
     await saveJob();
     ui.onboardingActive = false;
-    ui.currentPage = "dashboard";
+    await navigateToPage("dashboard");
   }
 
   function enterProfilePage() {
-    ui.currentPage = "profile";
+    void navigateToPage("profile");
+  }
+
+  function enterDashboardPage() {
+    void navigateToPage("dashboard");
   }
 
   function startGenerateFlow() {
@@ -614,7 +643,9 @@ export function useApp() {
     removeCustomSection,
     clearAllExperiences,
     completeWizardAndContinue,
+    enterDashboardPage,
     enterProfilePage,
+    navigateToPage,
     startGenerateFlow,
     toggleDarkMode
   };

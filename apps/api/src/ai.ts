@@ -557,6 +557,39 @@ function buildHeuristicImportedProfile(resumeText: string): ResumeProfileImport 
   });
 }
 
+function buildMinimalImportedProfile(resumeText: string): ResumeProfileImport {
+  const text = normalizeResumeText(resumeText);
+  const lines = text.split("\n").map((line) => line.trim()).filter(Boolean);
+  const email = findFirstMatch(text, /([A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,})/i);
+  const phone = findFirstMatch(text, /(\+?\d[\d().\-\s]{7,}\d)/);
+  const links = Array.from(new Set((text.match(/https?:\/\/[^\s)]+/g) ?? []).map((item) => item.trim())));
+
+  return sanitizeImportedProfile({
+    fullName: lines[0] && !lines[0].includes("@") && lines[0].length < 80 ? lines[0] : "",
+    headline: lines[1] && !lines[1].includes("@") && lines[1].length < 80 ? lines[1] : "",
+    phoneNumber: phone,
+    email,
+    summary: "",
+    skills: [],
+    education: [],
+    certifications: [],
+    customSections: [],
+    links: links.map((url, index) => ({
+      id: `minimal-link-${index + 1}`,
+      label: url.includes("linkedin.com") ? "LinkedIn" : url.includes("github.com") ? "GitHub" : "Link",
+      url
+    }))
+  });
+}
+
+function buildSafeHeuristicImportedProfile(resumeText: string) {
+  try {
+    return buildHeuristicImportedProfile(resumeText);
+  } catch {
+    return buildMinimalImportedProfile(resumeText);
+  }
+}
+
 function mergeImportedProfiles(primary: ResumeProfileImport, fallback: ResumeProfileImport): ResumeProfileImport {
   return sanitizeImportedProfile({
     fullName: primary.fullName || fallback.fullName,
@@ -580,7 +613,7 @@ function mergeImportedProfiles(primary: ResumeProfileImport, fallback: ResumePro
 
 export async function importProfileFromResumeText(resumeText: string, bindings: AppBindings = {}) {
   const normalizedResumeText = normalizeResumeText(resumeText);
-  const heuristicImportedProfile = buildHeuristicImportedProfile(normalizedResumeText);
+  const heuristicImportedProfile = buildSafeHeuristicImportedProfile(normalizedResumeText);
 
   if (normalizedResumeText.length < 80) {
     throw new Error("We could upload the file, but we could not extract enough readable text to import from it. Try a text-based PDF or DOCX.");

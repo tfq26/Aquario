@@ -2,7 +2,7 @@
 import { Button } from "@/components/ui/button";
 import { useApp } from "@/composables/useApp";
 
-const { auth, state, ui, logout, toggleDarkMode } = useApp();
+const { auth, state, ui, logout, toggleDarkMode, enterDashboardPage, enterProfilePage } = useApp();
 </script>
 
 <template>
@@ -19,7 +19,7 @@ const { auth, state, ui, logout, toggleDarkMode } = useApp();
         type="button" 
         class="sidebar-link" 
         :data-active="ui.currentPage === 'dashboard'" 
-        @click="ui.currentPage = 'dashboard'"
+        @click="enterDashboardPage"
       >
         Dashboard
       </button>
@@ -27,7 +27,7 @@ const { auth, state, ui, logout, toggleDarkMode } = useApp();
         type="button" 
         class="sidebar-link" 
         :data-active="ui.currentPage === 'profile'" 
-        @click="ui.currentPage = 'profile'"
+        @click="enterProfilePage"
       >
         Profile
       </button>

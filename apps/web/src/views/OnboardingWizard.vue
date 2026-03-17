@@ -228,12 +228,6 @@ const wizardCopy = computed(() => {
                   <div class="field-group lg:col-span-2">
                     <Label>Address</Label>
                     <div class="grid gap-3 md:grid-cols-2">
-                      <label class="md:col-span-2 flex h-11 items-center rounded-2xl border border-border bg-white/80 px-4 text-sm text-muted-foreground">
-                        <select v-model="state.profile.address.country" class="w-full bg-transparent text-foreground outline-none">
-                          <option value="" disabled>Select country</option>
-                          <option v-for="country in countryOptions" :key="country" :value="country">{{ country }}</option>
-                        </select>
-                      </label>
                       <Input v-model="state.profile.address.street1" placeholder="Street address" />
                       <Input v-model="state.profile.address.street2" placeholder="Suite / Unit" />
                       <Input v-model="state.profile.address.city" placeholder="City" />
@@ -241,21 +235,13 @@ const wizardCopy = computed(() => {
                         <Input v-model="state.profile.address.state" placeholder="State" />
                         <Input v-model="state.profile.address.zipCode" placeholder="ZIP" />
                       </div>
+                      <label class="md:col-span-2 flex h-11 items-center rounded-2xl border border-border bg-white/80 px-4 text-sm text-muted-foreground">
+                        <select v-model="state.profile.address.country" class="w-full bg-transparent text-foreground outline-none">
+                          <option value="" disabled>Select country</option>
+                          <option v-for="country in countryOptions" :key="country" :value="country">{{ country }}</option>
+                        </select>
+                      </label>
                     </div>
-                  </div>
-                  <div class="field-group lg:col-span-2">
-                    <div class="mb-2 flex items-center justify-between gap-3">
-                      <Label>Professional Summary</Label>
-                      <Button variant="outline" size="sm" :disabled="ui.generatingSummary" @click="generateSummary">
-                        <Spinner v-if="ui.generatingSummary" class="mr-2" />
-                        Generate
-                      </Button>
-                    </div>
-                    <Textarea
-                      v-model="state.profile.summary"
-                      :rows="5"
-                      placeholder="Add a short summary, or let Aquario draft one from your experience."
-                    />
                   </div>
                 </div>
 
@@ -498,6 +484,24 @@ const wizardCopy = computed(() => {
 
                   <div class="flex justify-start">
                     <Button variant="outline" size="sm" @click="addCustomSection">Add Section</Button>
+                  </div>
+
+                  <div class="rounded-[24px] border border-border/70 bg-white/74 p-5">
+                    <div class="mb-3 flex items-center justify-between gap-3">
+                      <div>
+                        <p class="text-sm font-semibold text-foreground">Professional Summary</p>
+                        <p class="text-sm text-muted-foreground">Finish this step with a short summary of your background.</p>
+                      </div>
+                      <Button variant="outline" size="sm" :disabled="ui.generatingSummary" @click="generateSummary">
+                        <Spinner v-if="ui.generatingSummary" class="mr-2" />
+                        Generate
+                      </Button>
+                    </div>
+                    <Textarea
+                      v-model="state.profile.summary"
+                      :rows="5"
+                      placeholder="Add a short summary, or let Aquario draft one from your experience."
+                    />
                   </div>
                 </div>
 
