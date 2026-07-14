@@ -63,16 +63,16 @@ const displayValue = computed(() => {
       <Button
         variant="outline"
         :class="cn(
-          'w-full justify-start text-left font-normal rounded-xl h-11 bg-white/90 border-border text-[#133e87]',
+          'w-full justify-start text-left font-normal rounded-md h-11 bg-white/90 dark:bg-slate-900 border-border dark:border-white/10 text-[#133e87] dark:text-[#f3f3e0]',
           !internalDate && 'text-muted-foreground',
           props.class,
         )"
       >
-        <CalendarIcon class="mr-2 h-4 w-4" />
-        {{ displayValue }}
+        <CalendarIcon class="mr-2 h-4 w-4 shrink-0" />
+        <span class="truncate">{{ displayValue }}</span>
       </Button>
     </PopoverTrigger>
-    <PopoverContent class="w-auto p-0 border-white/60 bg-[#cbdceb]/95 backdrop-blur-md shadow-2xl rounded-xl overflow-hidden" align="start">
+    <PopoverContent class="w-auto p-0 border-white/60 dark:border-white/5 bg-[#cbdceb]/95 dark:bg-black/90 backdrop-blur-xl shadow-2xl rounded-md overflow-hidden" align="start">
       <Calendar
         v-model="internalDate"
         :initial-focus="true"

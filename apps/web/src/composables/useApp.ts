@@ -1,5 +1,15 @@
-import { computed, reactive, ref } from "vue";
-import type { AppState, AuthUser, GeneratedDocument, RepoContext, ResumeAsset } from "@/types";
+import { computed, reactive, ref, watch } from "vue";
+import { useDark, useToggle } from "@vueuse/core";
+import type {
+  AppState,
+  AuthUser,
+  GeneratedDocument,
+  GenerationSourceMode,
+  GenerationTemplateId,
+  RepoContext,
+  ResumeAsset,
+  SelectionSuggestion
+} from "@/types";
 import { createAuthorizedHeaders, getStoredAuthToken, setStoredAuthToken } from "@/lib/auth-client";
 
 const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/$/, "");
@@ -76,6 +86,9 @@ const state = reactive<AppState>({
   generated: []
 });
 
+const isDark = useDark();
+const toggleDark = useToggle(isDark);
+
 const auth = reactive({
   email: "",
   password: "",
@@ -97,7 +110,7 @@ const ui = reactive({
   bootstrapping: true,
   pageLoading: false,
   pageLoadingLabel: "Getting your workspace ready.",
-  currentPage: "dashboard" as "dashboard" | "profile",
+  currentPage: "dashboard" as "dashboard" | "profile" | "generate",
   wizardStep: 0,
   onboardingActive: false,
   savingProfile: false,
@@ -108,9 +121,12 @@ const ui = reactive({
   generatingHeadline: false,
   generatingSummary: false,
   generatingDocument: false,
+  suggestingSelections: false,
+  generatingWorkspaceDocument: false,
   notice: "",
   error: "",
-  isDark: false
+  isDark: isDark,
+  isSidebarVisible: false
 });
 
 const controls = reactive({
@@ -123,6 +139,35 @@ const generation = reactive({
   userRequest: "",
   includeGithub: true,
   includeResume: true
+});
+
+const emptySuggestion = (): SelectionSuggestion => ({
+  experienceIds: [],
+  projectIds: [],
+  certificationIds: [],
+  skillNames: [],
+  reasoning: ""
+});
+
+const documentBuilder = reactive({
+  step: 0,
+  kind: "tailored-resume" as GeneratedDocument["kind"],
+  templateId: "classic" as GenerationTemplateId,
+  sourceMode: "existing-resume" as GenerationSourceMode,
+  companyName: "",
+  roleTitle: "",
+  jobDescription: "",
+  hiringManagerNotes: "",
+  addresseeName: "",
+  addresseeTitle: "",
+  addresseeCompany: "",
+  userRequest: "",
+  selectedExperienceIds: [] as string[],
+  selectedProjectIds: [] as string[],
+  selectedCertificationIds: [] as string[],
+  selectedSkillNames: [] as string[],
+  suggestions: emptySuggestion(),
+  preview: null as GeneratedDocument | null
 });
 
 const selectedResumeFile = ref<File | null>(null);
@@ -227,19 +272,75 @@ export function useApp() {
     applyState(await api<AppState>("/api/state"));
   }
 
-  async function navigateToPage(page: "dashboard" | "profile") {
+  function seedDocumentBuilderFromState() {
+    if (!documentBuilder.companyName) {
+      documentBuilder.companyName = state.job.companyName;
+    }
+    if (!documentBuilder.roleTitle) {
+      documentBuilder.roleTitle = state.job.roleTitle;
+    }
+    if (!documentBuilder.jobDescription) {
+      documentBuilder.jobDescription = state.job.jobDescription;
+    }
+    if (!documentBuilder.hiringManagerNotes) {
+      documentBuilder.hiringManagerNotes = state.job.hiringManagerNotes;
+    }
+    if (!documentBuilder.selectedExperienceIds.length) {
+      documentBuilder.selectedExperienceIds = state.profile.experience.map((item) => item.id);
+    }
+    if (!documentBuilder.selectedProjectIds.length) {
+      documentBuilder.selectedProjectIds = state.profile.projects.map((item) => item.id);
+    }
+    if (!documentBuilder.selectedCertificationIds.length) {
+      documentBuilder.selectedCertificationIds = state.profile.certifications.map((item) => item.id);
+    }
+    if (!documentBuilder.selectedSkillNames.length) {
+      documentBuilder.selectedSkillNames = [...state.profile.skills];
+    }
+  }
+
+  function resetDocumentBuilderFlow() {
+    documentBuilder.step = 0;
+    documentBuilder.kind = "tailored-resume";
+    documentBuilder.templateId = "classic";
+    documentBuilder.sourceMode = state.resumeAsset ? "existing-resume" : "template-only";
+    documentBuilder.companyName = state.job.companyName;
+    documentBuilder.roleTitle = state.job.roleTitle;
+    documentBuilder.jobDescription = state.job.jobDescription;
+    documentBuilder.hiringManagerNotes = state.job.hiringManagerNotes;
+    documentBuilder.addresseeName = "";
+    documentBuilder.addresseeTitle = "";
+    documentBuilder.addresseeCompany = state.job.companyName;
+    documentBuilder.userRequest = "";
+    documentBuilder.selectedExperienceIds = state.profile.experience.map((item) => item.id);
+    documentBuilder.selectedProjectIds = state.profile.projects.map((item) => item.id);
+    documentBuilder.selectedCertificationIds = state.profile.certifications.map((item) => item.id);
+    documentBuilder.selectedSkillNames = [...state.profile.skills];
+    documentBuilder.suggestions = emptySuggestion();
+    documentBuilder.preview = null;
+  }
+
+  async function navigateToPage(page: "dashboard" | "profile" | "generate") {
     if (ui.currentPage === page && !ui.pageLoading) {
       return;
     }
 
     ui.pageLoading = true;
-    ui.pageLoadingLabel = page === "profile" ? "Loading your profile details." : "Loading your workspace.";
+    ui.pageLoadingLabel =
+      page === "profile"
+        ? "Loading your profile details."
+        : page === "generate"
+          ? "Opening your document workspace."
+          : "Loading your workspace.";
 
     try {
       await Promise.all([
         auth.authenticated ? loadState() : Promise.resolve(),
         new Promise((resolve) => window.setTimeout(resolve, 320))
       ]);
+      if (page === "generate") {
+        seedDocumentBuilderFromState();
+      }
       ui.currentPage = page;
     } catch (error) {
       ui.error = error instanceof Error ? error.message : "Unable to load that page.";
@@ -514,6 +615,104 @@ export function useApp() {
     }
   }
 
+  async function suggestDocumentSelections() {
+    if (!documentBuilder.jobDescription.trim()) {
+      ui.error = "Add the job description first.";
+      return;
+    }
+
+    ui.suggestingSelections = true;
+    ui.error = "";
+
+    try {
+      const suggestions = await api<SelectionSuggestion>("/api/generate/suggestions", {
+        method: "POST",
+        body: JSON.stringify({
+          companyName: documentBuilder.companyName,
+          roleTitle: documentBuilder.roleTitle,
+          jobDescription: documentBuilder.jobDescription,
+          hiringManagerNotes: documentBuilder.hiringManagerNotes
+        })
+      });
+
+      documentBuilder.suggestions = suggestions;
+
+      if (suggestions.experienceIds.length) {
+        documentBuilder.selectedExperienceIds = suggestions.experienceIds;
+      }
+      if (suggestions.projectIds.length) {
+        documentBuilder.selectedProjectIds = suggestions.projectIds;
+      }
+      if (suggestions.certificationIds.length) {
+        documentBuilder.selectedCertificationIds = suggestions.certificationIds;
+      }
+      if (suggestions.skillNames.length) {
+        documentBuilder.selectedSkillNames = suggestions.skillNames;
+      }
+
+      ui.notice = "Suggested selections are ready.";
+    } catch (error) {
+      ui.error = error instanceof Error ? error.message : "Unable to suggest selections.";
+    } finally {
+      ui.suggestingSelections = false;
+    }
+  }
+
+  async function generateWorkspaceDocument() {
+    if (!documentBuilder.jobDescription.trim()) {
+      ui.error = "Add the job description before generating.";
+      return;
+    }
+
+    ui.generatingWorkspaceDocument = true;
+    ui.error = "";
+
+    try {
+      const addresseeNotes =
+        documentBuilder.kind === "cv" || documentBuilder.kind === "cover-letter"
+          ? [
+              documentBuilder.addresseeName && `Address to: ${documentBuilder.addresseeName}`,
+              documentBuilder.addresseeTitle && `Recipient title: ${documentBuilder.addresseeTitle}`,
+              documentBuilder.addresseeCompany && `Recipient company: ${documentBuilder.addresseeCompany}`
+            ]
+              .filter(Boolean)
+              .join("\n")
+          : "";
+
+      const composedUserRequest = [documentBuilder.userRequest, addresseeNotes].filter(Boolean).join("\n\n");
+
+      const generated = await api<GeneratedDocument>("/api/generate/workspace", {
+        method: "POST",
+        body: JSON.stringify({
+          kind: documentBuilder.kind,
+          templateId: documentBuilder.templateId,
+          sourceMode: documentBuilder.sourceMode,
+          userRequest: composedUserRequest,
+          job: {
+            companyName: documentBuilder.companyName,
+            roleTitle: documentBuilder.roleTitle,
+            jobDescription: documentBuilder.jobDescription,
+            hiringManagerNotes: documentBuilder.hiringManagerNotes
+          },
+          selections: {
+            experienceIds: documentBuilder.selectedExperienceIds,
+            projectIds: documentBuilder.selectedProjectIds,
+            certificationIds: documentBuilder.selectedCertificationIds,
+            skillNames: documentBuilder.selectedSkillNames
+          }
+        })
+      });
+
+      documentBuilder.preview = generated;
+      state.generated.unshift(generated);
+      ui.notice = "Document preview is ready.";
+    } catch (error) {
+      ui.error = error instanceof Error ? error.message : "Unable to generate the document.";
+    } finally {
+      ui.generatingWorkspaceDocument = false;
+    }
+  }
+
   function addExperience() {
     state.profile.experience.push({
       id: createId("exp"),
@@ -596,18 +795,19 @@ export function useApp() {
     void navigateToPage("dashboard");
   }
 
+  function enterGeneratePage() {
+    void navigateToPage("generate");
+  }
+
   function startGenerateFlow() {
     controls.filter = "all";
     generation.userRequest = "";
+    resetDocumentBuilderFlow();
+    void navigateToPage("generate");
   }
 
   function toggleDarkMode() {
-    ui.isDark = !ui.isDark;
-    if (ui.isDark) {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
+    toggleDark();
   }
 
   return {
@@ -616,6 +816,7 @@ export function useApp() {
     ui,
     controls,
     generation,
+    documentBuilder,
     selectedResumeFile,
     headlineOptions,
     headlineSelection,
@@ -633,6 +834,9 @@ export function useApp() {
     generateHeadline,
     generateSummary,
     generateDocument,
+    suggestDocumentSelections,
+    generateWorkspaceDocument,
+    resetDocumentBuilderFlow,
     addExperience,
     removeExperience,
     addEducation,
@@ -644,6 +848,7 @@ export function useApp() {
     clearAllExperiences,
     completeWizardAndContinue,
     enterDashboardPage,
+    enterGeneratePage,
     enterProfilePage,
     navigateToPage,
     startGenerateFlow,

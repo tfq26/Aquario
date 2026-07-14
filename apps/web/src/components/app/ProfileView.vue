@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
+import { Select } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Spinner } from "@/components/ui/spinner";
@@ -16,6 +16,8 @@ import { Github } from "lucide-vue-next";
 import { useApp } from "@/composables/useApp";
 import { skillOptions, technologyOptions } from "@/lib/catalog";
 import { countryOptions } from "@/lib/countries";
+import { createAuthorizedHeaders } from "@/lib/auth-client";
+import { cn } from "@/lib/utils";
 
 const { 
   state, ui, 
@@ -47,30 +49,28 @@ const educationLevels = [
 <template>
   <div class="space-y-8 pb-20">
     <!-- Profile Details Card -->
-    <Card class="border-white/60 bg-[#cbdceb]/60 backdrop-blur-md">
+    <Card class="border-none bg-[#cbdceb]/60 backdrop-blur-md dark:bg-black/40 dark:border-none shadow-sm rounded-md">
       <CardHeader>
-        <CardTitle class="text-[#133e87]">Profile details</CardTitle>
-        <CardDescription class="text-[#608bc1]">Edit the basic information used in your documents.</CardDescription>
+        <CardTitle class="text-[#133e87] dark:text-[#f3f3e0]">Profile details</CardTitle>
+        <CardDescription class="text-[#608bc1] dark:text-sky-400/70">Edit the basic information used in your documents.</CardDescription>
       </CardHeader>
       <CardContent class="space-y-6">
         <div class="grid gap-6 md:grid-cols-2">
           <div class="field-group">
-            <Label class="text-[#133e87]">Full name</Label>
-            <Input v-model="state.profile.fullName" placeholder="Ariana Candidate" class="bg-white/90" />
+            <Label class="text-[#133e87] dark:text-[#f3f3e0]">Full name</Label>
+            <Input v-model="state.profile.fullName" placeholder="Ariana Candidate" class="bg-white/90 dark:bg-slate-900 dark:text-[#f3f3e0] dark:border-white/10 rounded-xl" />
           </div>
           <div class="field-group">
-            <Label class="text-[#133e87]">Headline</Label>
+            <Label class="text-[#133e87] dark:text-[#f3f3e0]">Headline</Label>
             <div class="grid gap-3">
-              <label class="flex h-11 items-center rounded-2xl border border-border bg-white/90 px-4 text-sm">
-                <select v-model="headlineSelection" class="w-full bg-transparent text-[#133e87] outline-none">
-                  <option value="" disabled>Select a headline</option>
-                  <option v-for="option in headlineOptions" :key="option" :value="option">{{ option }}</option>
-                  <option value="Other">Other</option>
-                </select>
-              </label>
+              <Select v-model="headlineSelection" placeholder="Select a headline" class="rounded-xl">
+                <option value="" disabled>Select a headline</option>
+                <option v-for="option in headlineOptions" :key="option" :value="option">{{ option }}</option>
+                <option value="Other">Other</option>
+              </Select>
               <div v-if="isCustomHeadline" class="flex gap-3">
-                <Input v-model="state.profile.headline" placeholder="Type your headline" class="bg-white/90" />
-                <Button variant="outline" :disabled="ui.generatingHeadline" class="border-[#133e87] text-[#133e87] hover:bg-[#133e87]/10" @click="generateHeadline">
+                <Input v-model="state.profile.headline" placeholder="Type your headline" class="bg-white/90 dark:bg-slate-900 dark:text-[#f3f3e0] dark:border-white/10 rounded-xl" />
+                <Button variant="outline" :disabled="ui.generatingHeadline" class="border-[#133e87] dark:border-sky-700/50 text-[#133e87] dark:text-sky-300 hover:bg-[#133e87]/10 dark:hover:bg-sky-700/20 rounded-md" @click="generateHeadline">
                   <Spinner v-if="ui.generatingHeadline" class="mr-2" />
                   Suggest
                 </Button>
@@ -78,26 +78,23 @@ const educationLevels = [
             </div>
           </div>
           <div class="field-group">
-            <Label class="text-[#133e87]">Email</Label>
-            <InputGroup>
-              <InputGroupAddon class="bg-[#133e87] text-white">@</InputGroupAddon>
-              <InputGroupInput v-model="state.profile.email" type="email" placeholder="name@example.com" class="bg-white/90" />
-            </InputGroup>
+            <Label class="text-[#133e87] dark:text-[#f3f3e0]">Email</Label>
+            <Input v-model="state.profile.email" type="email" placeholder="name@example.com" class="bg-white/90 dark:bg-slate-900 dark:text-[#f3f3e0] dark:border-white/10 rounded-xl" />
           </div>
           <div class="field-group">
-            <Label class="text-[#133e87]">Phone number</Label>
-            <Input v-model="state.profile.phoneNumber" type="tel" placeholder="(555) 123-4567" class="bg-white/90" />
+            <Label class="text-[#133e87] dark:text-[#f3f3e0]">Phone number</Label>
+            <Input v-model="state.profile.phoneNumber" type="tel" placeholder="(555) 123-4567" class="bg-white/90 dark:bg-slate-900 dark:text-[#f3f3e0] dark:border-white/10 rounded-xl" />
           </div>
         </div>
 
         <div class="field-group">
           <div class="mb-2 flex items-center justify-between gap-3">
-            <Label class="text-[#133e87]">Professional Summary</Label>
+            <Label class="text-[#133e87] dark:text-[#f3f3e0]">Professional Summary</Label>
             <Button
               variant="outline"
               size="sm"
               :disabled="ui.generatingSummary"
-              class="border-[#133e87] text-[#133e87] hover:bg-[#133e87]/10"
+              class="border-[#133e87] dark:border-sky-700/50 text-[#133e87] dark:text-sky-300 hover:bg-[#133e87]/10 dark:hover:bg-sky-700/20 rounded-md"
               @click="generateSummary"
             >
               <Spinner v-if="ui.generatingSummary" class="mr-2" />
@@ -108,71 +105,72 @@ const educationLevels = [
             v-model="state.profile.summary"
             :rows="5"
             placeholder="Write a concise professional summary, or generate one from your experience."
-            class="bg-white/90"
+            class="bg-white/90 dark:bg-slate-900 dark:text-[#f3f3e0] dark:border-white/10 rounded-xl"
           />
         </div>
 
         <div class="field-group">
           <Label class="text-[#133e87]">Address</Label>
-          <div class="grid gap-4 md:grid-cols-2 rounded-[24px] border border-white/50 bg-white/60 p-5 shadow-sm">
-            <label class="md:col-span-2 flex h-11 items-center rounded-2xl border border-border bg-white/90 px-4 text-sm">
-              <select v-model="state.profile.address.country" class="w-full bg-transparent text-[#133e87] outline-none">
-                <option value="" disabled>Select country</option>
-                <option v-for="country in countryOptions" :key="country" :value="country">{{ country }}</option>
-              </select>
-            </label>
-            <Input v-model="state.profile.address.street1" placeholder="Street address" class="bg-white/90 md:col-span-2" />
-            <Input v-model="state.profile.address.street2" placeholder="Apartment, suite, unit (optional)" class="bg-white/90 md:col-span-2" />
-            <Input v-model="state.profile.address.city" placeholder="City" class="bg-white/90" />
-            <Input v-model="state.profile.address.state" placeholder="State" class="bg-white/90" />
-            <Input v-model="state.profile.address.zipCode" class="md:col-span-2 bg-white/90" placeholder="ZIP code" />
+          <div class="grid gap-4 md:grid-cols-2 rounded-md border border-white/50 dark:border-none bg-white/60 dark:bg-black/20 p-5 shadow-sm">
+                <Select v-model="state.profile.address.country" placeholder="Select country" class="rounded-xl">
+                  <option value="" disabled>Select country</option>
+                  <option v-for="country in countryOptions" :key="country" :value="country">{{ country }}</option>
+                </Select>
+            <Input v-model="state.profile.address.street1" placeholder="Street address" class="bg-white/90 md:col-span-2 dark:bg-slate-900 dark:text-[#f3f3e0] dark:border-white/10 rounded-xl" />
+            <Input v-model="state.profile.address.street2" placeholder="Apartment, suite, unit (optional)" class="bg-white/90 md:col-span-2 dark:bg-slate-900 dark:text-[#f3f3e0] dark:border-white/10 rounded-xl" />
+            <Input v-model="state.profile.address.city" placeholder="City" class="bg-white/90 dark:bg-slate-900 dark:text-[#f3f3e0] dark:border-white/10 rounded-xl" />
+            <Input v-model="state.profile.address.state" placeholder="State" class="bg-white/90 dark:bg-slate-900 dark:text-[#f3f3e0] dark:border-white/10 rounded-xl" />
+            <Input v-model="state.profile.address.zipCode" class="md:col-span-2 bg-white/90 dark:bg-slate-900 dark:text-[#f3f3e0] dark:border-white/10 rounded-xl" placeholder="ZIP code" />
           </div>
         </div>
       </CardContent>
     </Card>
 
     <!-- Experience Section (Kept as it is standard) -->
-    <Card class="border-white/60 bg-[#cbdceb]/60 backdrop-blur-md">
+    <Card class="border-none bg-[#cbdceb]/60 backdrop-blur-md dark:bg-black/40 dark:border-none shadow-sm rounded-md">
       <CardHeader class="flex flex-row items-center justify-between">
         <div>
-          <CardTitle class="text-[#133e87]">Work Experience</CardTitle>
-          <CardDescription class="text-[#608bc1]">Your professional journey and achievements.</CardDescription>
+          <CardTitle class="text-[#133e87] dark:text-[#f3f3e0]">Work Experience</CardTitle>
+          <CardDescription class="text-[#608bc1] dark:text-sky-400/70">Your professional journey and achievements.</CardDescription>
         </div>
-        <Button size="sm" class="bg-[#133e87] text-white" @click="addExperience">+ Add</Button>
+        <Button size="sm" class="bg-[#133e87] dark:bg-sky-700 text-white hover:bg-[#133e87]/90 dark:hover:bg-sky-600 rounded-md" @click="addExperience">+ Add</Button>
       </CardHeader>
       <CardContent class="space-y-6">
-        <div v-for="(exp, index) in state.profile.experience" :key="exp.id" class="relative grid gap-4 rounded-[24px] border border-white/50 bg-white/60 p-6 shadow-sm h-fit">
-          <Button variant="ghost" size="sm" class="absolute right-4 top-4 text-red-500 hover:bg-red-50" @click="removeExperience(index)">Remove</Button>
+        <div v-for="(exp, index) in state.profile.experience" :key="exp.id" class="relative grid gap-4 rounded-md border border-white/50 dark:border-none bg-white/60 dark:bg-black/20 p-6 shadow-sm h-fit">
+          <Button variant="ghost" size="sm" class="absolute right-4 top-4 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10" @click="removeExperience(index)">Remove</Button>
           <div class="grid gap-4 md:grid-cols-2">
             <div class="field-group">
-              <Label class="text-[#133e87]">Company</Label>
-              <Input v-model="exp.company" placeholder="Acme Corp" class="bg-white/90" />
+              <Label class="text-[#133e87] dark:text-[#f3f3e0]">Company</Label>
+              <Input v-model="exp.company" placeholder="Acme Corp" class="bg-white/90 dark:bg-slate-900 dark:text-[#f3f3e0] dark:border-white/10 rounded-xl" />
             </div>
             <div class="field-group">
-              <Label class="text-[#133e87]">Title</Label>
-              <Input v-model="exp.title" placeholder="Lead Engineer" class="bg-white/90" />
+              <Label class="text-[#133e87] dark:text-[#f3f3e0]">Title</Label>
+              <Input v-model="exp.title" placeholder="Lead Engineer" class="bg-white/90 dark:bg-slate-900 dark:text-[#f3f3e0] dark:border-white/10 rounded-xl" />
             </div>
             <div class="field-group">
-              <Label class="text-[#133e87]">Start Date</Label>
-              <CalendarInput v-model="exp.startDate" class="bg-white/90" />
+              <Label class="text-[#133e87] dark:text-[#f3f3e0]">Start Date</Label>
+              <CalendarInput v-model="exp.startDate" :class="cn('w-full justify-start text-left font-normal rounded-xl h-11 bg-white/90 dark:bg-slate-900 border-border dark:border-white/10 text-[#133e87] dark:text-[#f3f3e0]', !exp.startDate && 'text-muted-foreground')" />
             </div>
             <div class="field-group">
-              <Label class="text-[#133e87]">End Date</Label>
-              <CalendarInput v-model="exp.endDate" class="bg-white/90" />
+              <Label class="text-[#133e87] dark:text-[#f3f3e0]">End Date</Label>
+              <CalendarInput v-model="exp.endDate" :class="cn('w-full justify-start text-left font-normal rounded-xl h-11 bg-white/90 dark:bg-slate-900 border-border dark:border-white/10 text-[#133e87] dark:text-[#f3f3e0]', !exp.endDate && 'text-muted-foreground')" />
             </div>
           </div>
           <div class="field-group">
-            <Label class="text-[#133e87]">Achievements & Highlights</Label>
-            <Textarea v-for="(hl, hlIndex) in exp.highlights" :key="hlIndex" v-model="exp.highlights[hlIndex]" :rows="1" placeholder="Describe a key accomplishment..." class="bg-white/90 h-fit" />
-            <Button variant="outline" size="sm" class="w-fit" @click="exp.highlights.push('')">+ Add Bullet Point</Button>
+            <Label class="text-[#133e87] dark:text-[#f3f3e0]">Achievements & Highlights</Label>
+            <Textarea v-for="(hl, hlIndex) in exp.highlights" :key="hlIndex" v-model="exp.highlights[hlIndex]" :rows="1" placeholder="Describe a key accomplishment..." class="bg-white/90 dark:bg-slate-900 dark:text-[#f3f3e0] dark:border-white/10 rounded-xl h-fit" />
+            <Button variant="outline" size="sm" class="w-fit border-[#133e87] dark:border-sky-700/50 text-[#133e87] dark:text-sky-300 hover:bg-[#133e87]/10 dark:hover:bg-sky-700/20 rounded-md" @click="exp.highlights.push('')">
+              + Add Bullet Point
+            </Button>
           </div>
           <div class="field-group">
-            <Label class="text-[#133e87]">Technologies Used</Label>
+            <Label class="text-[#133e87] dark:text-[#f3f3e0]">Technologies Used</Label>
             <TagRepositoryField
               v-model="exp.technologies"
               :options="technologyOptions"
               placeholder="Add another technology"
               add-label="Add Tech"
+              class="bg-white/90 dark:bg-slate-900 dark:text-[#f3f3e0] dark:border-white/10 rounded-xl"
             />
           </div>
         </div>
@@ -183,42 +181,40 @@ const educationLevels = [
     </Card>
 
     <!-- Education Section -->
-    <Card class="border-white/60 bg-[#cbdceb]/60 backdrop-blur-md">
+    <Card class="border-none bg-[#cbdceb]/60 backdrop-blur-md dark:bg-black/40 dark:border-none shadow-sm rounded-md">
       <CardHeader class="flex flex-row items-center justify-between">
         <div>
-          <CardTitle class="text-[#133e87]">Education</CardTitle>
-          <CardDescription class="text-[#608bc1]">Degrees, programs, and academic background.</CardDescription>
+          <CardTitle class="text-[#133e87] dark:text-[#f3f3e0]">Education</CardTitle>
+          <CardDescription class="text-[#608bc1] dark:text-sky-400/70">Degrees, programs, and academic background.</CardDescription>
         </div>
-        <Button size="sm" class="bg-[#133e87] text-white" @click="addEducation">+ Add</Button>
+        <Button size="sm" class="bg-[#133e87] dark:bg-sky-700 text-white hover:bg-[#133e87]/90 dark:hover:bg-sky-600 rounded-md" @click="addEducation">+ Add</Button>
       </CardHeader>
       <CardContent class="space-y-6">
-        <div v-for="(edu, index) in state.profile.education" :key="edu.id" class="relative grid gap-4 rounded-[24px] border border-white/50 bg-white/60 p-6 shadow-sm">
-          <Button variant="ghost" size="sm" class="absolute right-4 top-4 text-red-500 hover:bg-red-50" @click="removeEducation(index)">Remove</Button>
+        <div v-for="(edu, index) in state.profile.education" :key="edu.id" class="relative grid gap-4 rounded-md border border-white/50 dark:border-none bg-white/60 dark:bg-black/20 p-6 shadow-sm">
+          <Button variant="ghost" size="sm" class="absolute right-4 top-4 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10" @click="removeEducation(index)">Remove</Button>
           <div class="grid gap-4 md:grid-cols-2">
             <div class="field-group">
-              <Label class="text-[#133e87]">School / Institution</Label>
+              <Label class="text-[#133e87] dark:text-[#f3f3e0]">School / Institution</Label>
               <UniversityInput
                 v-model="edu.school"
                 :country="edu.hasDifferentCountry ? edu.country : state.profile.address.country"
                 placeholder="Search for a university"
-                class="bg-white/90"
+                class="bg-white/90 dark:bg-slate-900 dark:text-[#f3f3e0] dark:border-white/10 rounded-xl"
               />
             </div>
             <div class="field-group">
-              <Label class="text-[#133e87]">Degree</Label>
-              <label class="flex h-11 items-center rounded-lg border border-border bg-white/90 px-4 text-sm">
-                <select v-model="edu.degree" class="w-full bg-transparent text-[#133e87] outline-none">
-                  <option value="" disabled>Select a degree</option>
-                  <option v-for="level in educationLevels" :key="level" :value="level">{{ level }}</option>
-                </select>
-              </label>
+              <Label class="text-[#133e87] dark:text-[#f3f3e0]">Degree</Label>
+                    <Select v-model="edu.degree" placeholder="Select a degree" class="rounded-xl">
+                      <option value="" disabled>Select a degree</option>
+                      <option v-for="level in educationLevels" :key="level" :value="level">{{ level }}</option>
+                    </Select>
             </div>
             <div class="field-group">
-              <Label class="text-[#133e87]">Field of Study</Label>
-              <Input v-model="edu.fieldOfStudy" placeholder="Artificial Intelligence" class="bg-white/90" />
+              <Label class="text-[#133e87] dark:text-[#f3f3e0]">Field of Study</Label>
+              <Input v-model="edu.fieldOfStudy" placeholder="Artificial Intelligence" class="bg-white/90 dark:bg-slate-900 dark:text-[#f3f3e0] dark:border-white/10 rounded-xl" />
             </div>
             <div class="field-group md:col-span-2">
-              <div class="flex items-center gap-3 rounded-[18px] border border-white/50 bg-white/70 px-4 py-3">
+              <div class="flex items-center gap-3 rounded-md border border-white/50 dark:border-white/10 bg-white/70 dark:bg-black/40 px-4 py-3">
                 <Checkbox
                   :checked="edu.hasDifferentCountry"
                   @update:checked="
@@ -230,26 +226,24 @@ const educationLevels = [
                     }
                   "
                 />
-                <Label class="text-[#133e87]">I studied in a different country</Label>
+                <Label class="text-[#133e87] dark:text-[#f3f3e0]">I studied in a different country</Label>
               </div>
             </div>
             <div v-if="edu.hasDifferentCountry" class="field-group md:col-span-2">
-              <Label class="text-[#133e87]">Study Country</Label>
-              <label class="flex h-11 items-center rounded-lg border border-border bg-white/90 px-4 text-sm">
-                <select v-model="edu.country" class="w-full bg-transparent text-[#133e87] outline-none">
-                  <option value="" disabled>Select country</option>
-                  <option v-for="country in countryOptions" :key="country" :value="country">{{ country }}</option>
-                </select>
-              </label>
+              <Label class="text-[#133e87] dark:text-[#f3f3e0]">Study Country</Label>
+                      <Select v-model="edu.country" placeholder="Select country" class="rounded-xl">
+                        <option value="" disabled>Select country</option>
+                        <option v-for="country in countryOptions" :key="country" :value="country">{{ country }}</option>
+                      </Select>
             </div>
-            <div class="field-group flex gap-3">
+            <div class="field-group flex gap-3 md:col-span-2">
               <div class="flex-1">
-                <Label class="text-[#133e87]">Start</Label>
-                <CalendarInput v-model="edu.startDate" class="bg-white/90" />
+                <Label class="text-[#133e87] dark:text-[#f3f3e0]">Start</Label>
+                <CalendarInput v-model="edu.startDate" :class="cn('w-full justify-start text-left font-normal rounded-xl h-11 bg-white/90 dark:bg-slate-900 border-border dark:border-white/10 text-[#133e87] dark:text-[#f3f3e0]', !edu.startDate && 'text-muted-foreground')" />
               </div>
               <div class="flex-1">
-                <Label class="text-[#133e87]">End</Label>
-                <CalendarInput v-model="edu.endDate" class="bg-white/90" />
+                <Label class="text-[#133e87] dark:text-[#f3f3e0]">End</Label>
+                <CalendarInput v-model="edu.endDate" :class="cn('w-full justify-start text-left font-normal rounded-md h-11 bg-white/90 dark:bg-slate-900 border-border dark:border-white/10 text-[#133e87] dark:text-[#f3f3e0]', !edu.endDate && 'text-muted-foreground')" />
               </div>
             </div>
           </div>
@@ -260,41 +254,41 @@ const educationLevels = [
       </CardContent>
     </Card>
 
-    <Card class="border-white/60 bg-[#cbdceb]/60 backdrop-blur-md">
+    <Card class="border-none bg-[#cbdceb]/60 backdrop-blur-md dark:bg-black/40 dark:border-none shadow-sm rounded-md">
       <CardHeader class="flex flex-row items-center justify-between">
         <div>
-          <CardTitle class="text-[#133e87]">Certifications</CardTitle>
-          <CardDescription class="text-[#608bc1]">Licenses, certificates, and professional credentials.</CardDescription>
+          <CardTitle class="text-[#133e87] dark:text-[#f3f3e0]">Certifications</CardTitle>
+          <CardDescription class="text-[#608bc1] dark:text-sky-400/70">Licenses, certificates, and professional credentials.</CardDescription>
         </div>
-        <Button size="sm" class="bg-[#133e87] text-white" @click="addCertification">+ Add</Button>
+        <Button size="sm" class="bg-[#133e87] dark:bg-sky-700 text-white hover:bg-[#133e87]/90 dark:hover:bg-sky-600 rounded-md" @click="addCertification">+ Add</Button>
       </CardHeader>
       <CardContent class="space-y-6">
-        <div v-for="(cert, index) in state.profile.certifications" :key="cert.id" class="relative grid gap-4 rounded-[24px] border border-white/50 bg-white/60 p-6 shadow-sm">
-          <Button variant="ghost" size="sm" class="absolute right-4 top-4 text-red-500 hover:bg-red-50" @click="removeCertification(index)">Remove</Button>
+        <div v-for="(cert, index) in state.profile.certifications" :key="cert.id" class="relative grid gap-4 rounded-md border border-white/50 dark:border-none bg-white/60 dark:bg-black/20 p-6 shadow-sm">
+          <Button variant="ghost" size="sm" class="absolute right-4 top-4 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10" @click="removeCertification(index)">Remove</Button>
           <div class="grid gap-4 md:grid-cols-2">
             <div class="field-group">
-              <Label class="text-[#133e87]">Name</Label>
-              <Input v-model="cert.name" placeholder="AWS Certified Developer" class="bg-white/90" />
+              <Label class="text-[#133e87] dark:text-[#f3f3e0]">Name</Label>
+              <Input v-model="cert.name" placeholder="AWS Certified Developer" class="bg-white/90 dark:bg-slate-900 dark:text-[#f3f3e0] dark:border-white/10 rounded-md" />
             </div>
             <div class="field-group">
-              <Label class="text-[#133e87]">Issuer</Label>
-              <Input v-model="cert.issuer" placeholder="Amazon Web Services" class="bg-white/90" />
+              <Label class="text-[#133e87] dark:text-[#f3f3e0]">Issuer</Label>
+              <Input v-model="cert.issuer" placeholder="Amazon Web Services" class="bg-white/90 dark:bg-slate-900 dark:text-[#f3f3e0] dark:border-white/10 rounded-md" />
             </div>
             <div class="field-group">
-              <Label class="text-[#133e87]">Issued</Label>
-              <CalendarInput v-model="cert.issuedDate" class="bg-white/90" />
+              <Label class="text-[#133e87] dark:text-[#f3f3e0]">Issued</Label>
+              <CalendarInput v-model="cert.issuedDate" :class="cn('w-full justify-start text-left font-normal rounded-md h-11 bg-white/90 dark:bg-slate-900 border-border dark:border-white/10 text-[#133e87] dark:text-[#f3f3e0]', !cert.issuedDate && 'text-muted-foreground')" />
             </div>
             <div class="field-group">
-              <Label class="text-[#133e87]">Expires</Label>
-              <CalendarInput v-model="cert.expirationDate" class="bg-white/90" />
+              <Label class="text-[#133e87] dark:text-[#f3f3e0]">Expires</Label>
+              <CalendarInput v-model="cert.expirationDate" :class="cn('w-full justify-start text-left font-normal rounded-md h-11 bg-white/90 dark:bg-slate-900 border-border dark:border-white/10 text-[#133e87] dark:text-[#f3f3e0]', !cert.expirationDate && 'text-muted-foreground')" />
             </div>
             <div class="field-group">
-              <Label class="text-[#133e87]">Credential ID</Label>
-              <Input v-model="cert.credentialId" placeholder="ABC-123" class="bg-white/90" />
+              <Label class="text-[#133e87] dark:text-[#f3f3e0]">Credential ID</Label>
+              <Input v-model="cert.credentialId" placeholder="ABC-123" class="bg-white/90 dark:bg-slate-900 dark:text-[#f3f3e0] dark:border-white/10 rounded-md" />
             </div>
             <div class="field-group">
-              <Label class="text-[#133e87]">Credential URL</Label>
-              <Input v-model="cert.url" placeholder="https://..." class="bg-white/90" />
+              <Label class="text-[#133e87] dark:text-[#f3f3e0]">Credential URL</Label>
+              <Input v-model="cert.url" placeholder="https://..." class="bg-white/90 dark:bg-slate-900 dark:text-[#f3f3e0] dark:border-white/10 rounded-md" />
             </div>
           </div>
         </div>
@@ -304,27 +298,27 @@ const educationLevels = [
       </CardContent>
     </Card>
 
-    <Card v-if="state.profile.customSections.length > 0" class="border-white/60 bg-[#cbdceb]/60 backdrop-blur-md">
+    <Card v-if="state.profile.customSections.length > 0" class="border-none bg-[#cbdceb]/60 backdrop-blur-md dark:bg-black/40 dark:border-none shadow-sm rounded-md">
       <CardHeader class="flex flex-row items-center justify-between">
         <div>
-          <CardTitle class="text-[#133e87]">Extra Sections</CardTitle>
-          <CardDescription class="text-[#608bc1]">Projects, awards, leadership, volunteer work, or anything else.</CardDescription>
+          <CardTitle class="text-[#133e87] dark:text-[#f3f3e0]">Extra Sections</CardTitle>
+          <CardDescription class="text-[#608bc1] dark:text-sky-400/70">Projects, awards, leadership, volunteer work, or anything else.</CardDescription>
         </div>
       </CardHeader>
       <CardContent class="space-y-6">
-        <div v-for="(section, index) in state.profile.customSections" :key="section.id" class="relative grid gap-4 rounded-[24px] border border-white/50 bg-white/60 p-6 shadow-sm">
-          <Button variant="ghost" size="sm" class="absolute right-4 top-4 text-red-500 hover:bg-red-50" @click="removeCustomSection(index)">Remove</Button>
+        <div v-for="(section, index) in state.profile.customSections" :key="section.id" class="relative grid gap-4 rounded-md border border-white/50 dark:border-none bg-white/60 dark:bg-black/20 p-6 shadow-sm">
+          <Button variant="ghost" size="sm" class="absolute right-4 top-4 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10" @click="removeCustomSection(index)">Remove</Button>
           <div class="field-group">
-            <Label class="text-[#133e87]">Section Title</Label>
-            <Input v-model="section.title" placeholder="Projects" class="bg-white/90" />
+            <Label class="text-[#133e87] dark:text-[#f3f3e0]">Section Title</Label>
+            <Input v-model="section.title" placeholder="Projects" class="bg-white/90 dark:bg-slate-900 dark:text-[#f3f3e0] dark:border-white/10 rounded-md" />
           </div>
           <div class="field-group">
-            <Label class="text-[#133e87]">Items</Label>
+            <Label class="text-[#133e87] dark:text-[#f3f3e0]">Items</Label>
             <Textarea
               :model-value="section.items.join('\n')"
               :rows="5"
               placeholder="Add one item per line"
-              class="bg-white/90"
+              class="bg-white/90 dark:bg-slate-900 dark:text-[#f3f3e0] dark:border-white/10 rounded-md"
               @update:model-value="section.items = $event.split('\n').map((item) => item.trim()).filter(Boolean)"
             />
           </div>
@@ -332,59 +326,59 @@ const educationLevels = [
       </CardContent>
     </Card>
 
-    <Card class="border-white/60 bg-[#cbdceb]/60 backdrop-blur-md">
+    <Card class="border-none bg-[#cbdceb]/60 backdrop-blur-md dark:bg-black/40 dark:border-none shadow-sm rounded-md">
       <CardHeader>
-        <CardTitle class="text-[#133e87]">Synced Projects</CardTitle>
-        <CardDescription class="text-[#608bc1]">Projects from your GitHub repositories.</CardDescription>
+        <CardTitle class="text-[#133e87] dark:text-[#f3f3e0]">Synced Projects</CardTitle>
+        <CardDescription class="text-[#608bc1] dark:text-sky-400/70">Projects from your GitHub repositories.</CardDescription>
       </CardHeader>
       <CardContent class="space-y-6">
-        <div v-for="project in state.profile.projects" :key="project.id" class="rounded-[24px] border border-white/50 bg-white/60 p-6 shadow-sm">
+        <div v-for="project in state.profile.projects" :key="project.id" class="rounded-md border border-white/50 dark:border-none bg-white/60 dark:bg-black/20 p-6 shadow-sm">
           <div class="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <p class="text-lg font-semibold text-[#133e87]">{{ project.title }}</p>
-              <p class="text-sm text-[#608bc1]">{{ project.category }} · {{ project.developmentDuration || "Duration unknown" }}</p>
+              <p class="text-lg font-semibold text-[#133e87] dark:text-[#f3f3e0]">{{ project.title }}</p>
+              <p class="text-sm text-[#608bc1] dark:text-sky-400/70">{{ project.category }} · {{ project.developmentDuration || "Duration unknown" }}</p>
             </div>
-            <Badge as-child variant="outline" class="border-[#133e87] text-[#133e87] px-2">
+            <Badge as-child variant="outline" class="border-[#133e87] dark:border-sky-700/50 text-[#133e87] dark:text-sky-300 px-2 rounded-md">
               <a :href="project.repoUrl" target="_blank" rel="noreferrer" title="View Repository">
                 <Github class="size-5" />
               </a>
             </Badge>
           </div>
-          <p class="mt-4 text-sm leading-6 text-[#133e87]/85">{{ project.summary }}</p>
+          <p class="mt-4 text-sm leading-6 text-[#133e87]/85 dark:text-[#f3f3e0]/80">{{ project.summary }}</p>
           <div class="mt-4 flex flex-wrap gap-2">
-            <Badge v-for="technology in project.technologies" :key="technology" variant="secondary" class="bg-[#133e87]/10 text-[#133e87] border-white/40">
+            <Badge v-for="technology in project.technologies" :key="technology" variant="secondary" class="bg-[#133e87]/10 dark:bg-sky-900/40 text-[#133e87] dark:text-sky-200 border-white/40 dark:border-white/10 rounded-md">
               {{ technology }}
             </Badge>
           </div>
-          <ul v-if="project.highlights.length" class="mt-4 space-y-2 text-sm text-[#608bc1]">
+          <ul v-if="project.highlights.length" class="mt-4 space-y-2 text-sm text-[#608bc1] dark:text-sky-400/60">
             <li v-for="highlight in project.highlights" :key="highlight">{{ highlight }}</li>
           </ul>
           <div class="mt-6 flex justify-end">
             <Button
               variant="outline"
               size="sm"
-              class="border-[#133e87] text-[#133e87] hover:bg-[#133e87]/10"
+              class="border-[#133e87] dark:border-sky-700/50 text-[#133e87] dark:text-sky-300 hover:bg-[#133e87]/10 dark:hover:bg-sky-700/20 rounded-md"
               @click="toggleProjectEditor(project.id)"
             >
               {{ editingProjectId === project.id ? "Done" : "Edit" }}
             </Button>
           </div>
 
-          <div v-if="editingProjectId === project.id" class="mt-6 grid gap-4 border-t border-white/50 pt-6 md:grid-cols-2">
+          <div v-if="editingProjectId === project.id" class="mt-6 grid gap-4 border-t border-white/5 dark:border-white/10 pt-6 md:grid-cols-2">
             <div class="field-group">
-              <Label class="text-[#133e87]">Project Title</Label>
-              <Input v-model="project.title" placeholder="Project name" class="bg-white/90" />
+              <Label class="text-[#133e87] dark:text-[#f3f3e0]">Project Title</Label>
+              <Input v-model="project.title" placeholder="Project name" class="bg-white/90 dark:bg-slate-900 dark:text-[#f3f3e0] dark:border-white/10 rounded-md" />
             </div>
             <div class="field-group">
-              <Label class="text-[#133e87]">Category</Label>
-              <Input v-model="project.category" placeholder="Frontend App" class="bg-white/90" />
+              <Label class="text-[#133e87] dark:text-[#f3f3e0]">Category</Label>
+              <Input v-model="project.category" placeholder="Frontend App" class="bg-white/90 dark:bg-slate-900 dark:text-[#f3f3e0] dark:border-white/10 rounded-md" />
             </div>
             <div class="field-group md:col-span-2">
-              <Label class="text-[#133e87]">Summary</Label>
-              <Textarea v-model="project.summary" :rows="4" placeholder="Project summary" class="bg-white/90" />
+              <Label class="text-[#133e87] dark:text-[#f3f3e0]">Summary</Label>
+              <Textarea v-model="project.summary" :rows="4" placeholder="Project summary" class="bg-white/90 dark:bg-slate-900 dark:text-[#f3f3e0] dark:border-white/10 rounded-md" />
             </div>
             <div class="field-group">
-              <Label class="text-[#133e87]">Technologies</Label>
+              <Label class="text-[#133e87] dark:text-[#f3f3e0]">Technologies</Label>
               <TagRepositoryField
                 v-model="project.technologies"
                 :options="technologyOptions"
@@ -393,26 +387,26 @@ const educationLevels = [
               />
             </div>
             <div class="field-group">
-              <Label class="text-[#133e87]">Highlights</Label>
+              <Label class="text-[#133e87] dark:text-[#f3f3e0]">Highlights</Label>
               <Textarea
                 :model-value="project.highlights.join('\n')"
                 :rows="3"
                 placeholder="One highlight per line"
-                class="bg-white/90"
+                class="bg-white/90 dark:bg-slate-900 dark:text-[#f3f3e0] dark:border-white/10 rounded-md"
                 @update:model-value="project.highlights = $event.split('\n').map((item) => item.trim()).filter(Boolean)"
               />
             </div>
             <div class="field-group">
-              <Label class="text-[#133e87]">Started</Label>
-              <CalendarInput v-model="project.startedAt" class="bg-white/90" />
+              <Label class="text-[#133e87] dark:text-[#f3f3e0]">Started</Label>
+              <CalendarInput v-model="project.startedAt" class="bg-white/90 dark:bg-slate-900 dark:text-[#f3f3e0] dark:border-white/10 rounded-md" />
             </div>
             <div class="field-group">
-              <Label class="text-[#133e87]">Last Active</Label>
-              <CalendarInput v-model="project.lastActiveAt" class="bg-white/90" />
+              <Label class="text-[#133e87] dark:text-[#f3f3e0]">Last Active</Label>
+              <CalendarInput v-model="project.lastActiveAt" class="bg-white/90 dark:bg-slate-900 dark:text-[#f3f3e0] dark:border-white/10 rounded-md" />
             </div>
-            <div class="field-group">
-              <Label class="text-[#133e87]">Homepage URL</Label>
-              <Input v-model="project.homepageUrl" placeholder="https://..." class="bg-white/90 w-full" />
+            <div class="field-group md:col-span-2">
+              <Label class="text-[#133e87] dark:text-[#f3f3e0]">Homepage URL</Label>
+              <Input v-model="project.homepageUrl" placeholder="https://..." class="bg-white/90 dark:bg-slate-900 dark:text-[#f3f3e0] dark:border-white/10 rounded-md w-full" />
             </div>
           </div>
         </div>
@@ -423,14 +417,14 @@ const educationLevels = [
     </Card>
 
     <!-- Skills Section -->
-    <Card class="border-white/60 bg-[#cbdceb]/60 backdrop-blur-md">
+    <Card class="border-none bg-[#cbdceb]/60 backdrop-blur-md dark:bg-black/40 dark:border-none shadow-sm rounded-md">
       <CardHeader>
-        <CardTitle class="text-[#133e87]">Skills & Expertise</CardTitle>
-        <CardDescription class="text-[#608bc1]">List the core technologies and soft skills you possess.</CardDescription>
+        <CardTitle class="text-[#133e87] dark:text-[#f3f3e0]">Skills & Expertise</CardTitle>
+        <CardDescription class="text-[#608bc1] dark:text-sky-400/70">List the core technologies and soft skills you possess.</CardDescription>
       </CardHeader>
       <CardContent class="space-y-6">
         <div class="field-group">
-          <Label class="text-[#133e87]">Skills</Label>
+          <Label class="text-[#133e87] dark:text-[#f3f3e0]">Skills</Label>
           <TagRepositoryField
             v-model="state.profile.skills"
             :options="skillOptions"
@@ -442,20 +436,20 @@ const educationLevels = [
     </Card>
 
     <!-- Context & Attachments (Consolidated from Sidebar/Secondary) -->
-    <Card class="border-white/60 bg-[#cbdceb]/60 backdrop-blur-md">
+    <Card class="border-none bg-[#cbdceb]/60 backdrop-blur-md dark:bg-black/40 dark:border-none shadow-sm rounded-md">
        <CardHeader>
-        <CardTitle class="text-[#133e87]">Supporting Context</CardTitle>
-        <CardDescription class="text-[#608bc1]">Manage GitHub synchronization and resume grounding.</CardDescription>
+        <CardTitle class="text-[#133e87] dark:text-[#f3f3e0]">Connections</CardTitle>
+        <CardDescription class="text-[#608bc1] dark:text-sky-400/70">Manage GitHub synchronization and resume grounding.</CardDescription>
       </CardHeader>
       <CardContent class="space-y-6">
         <div class="field-group">
-          <Label class="text-[#133e87]">GitHub Profile</Label>
+          <Label class="text-[#133e87] dark:text-[#f3f3e0]">GitHub Profile</Label>
           <div class="flex gap-3">
             <InputGroup class="max-w-md">
-              <InputGroupAddon class="bg-[#133e87] text-white">github.com/</InputGroupAddon>
-              <InputGroupInput v-model="state.profile.githubUsername" placeholder="username" class="bg-white/90" />
+              <InputGroupAddon class="bg-[#133e87] dark:bg-sky-800 text-white border-transparent">github.com/</InputGroupAddon>
+              <InputGroupInput v-model="state.profile.githubUsername" placeholder="username" class="bg-white/90 dark:bg-slate-900 dark:text-[#f3f3e0] dark:border-white/10" />
             </InputGroup>
-            <Button variant="outline" :disabled="ui.syncingGithub" class="border-[#133e87] text-[#133e87] hover:bg-[#133e87]/10" @click="syncGithub">
+            <Button variant="outline" :disabled="ui.syncingGithub" class="border-[#133e87] dark:border-sky-700/50 text-[#133e87] dark:text-sky-300 hover:bg-[#133e87]/10 dark:hover:bg-sky-700/20 rounded-md shrink-0" @click="syncGithub">
               <Spinner v-if="ui.syncingGithub" class="mr-2" />
               Sync
             </Button>
@@ -463,15 +457,15 @@ const educationLevels = [
         </div>
 
         <div class="field-group">
-          <Label class="text-[#133e87]">Resume Document</Label>
+          <Label class="text-[#133e87] dark:text-[#f3f3e0]">Resume Document</Label>
           <div class="flex flex-col gap-3 max-w-md">
             <Input
               type="file"
               accept=".pdf,.doc,.docx,.txt"
-              class="bg-white/90"
+              class="bg-white/90 dark:bg-slate-900 dark:text-[#f3f3e0] dark:border-white/10 rounded-md"
               @change="selectedResumeFile = (($event.target as HTMLInputElement).files?.[0] ?? null)"
             />
-            <Button :disabled="ui.uploadingResume" class="bg-[#133e87] text-white hover:bg-[#133e87]/90" @click="uploadResume">
+            <Button :disabled="ui.uploadingResume" class="bg-[#133e87] dark:bg-sky-800 text-white hover:bg-[#133e87]/90 dark:hover:bg-sky-700 rounded-md" @click="uploadResume">
               <Spinner v-if="ui.uploadingResume" class="mr-2" />
               Upload & Process
             </Button>
@@ -485,7 +479,7 @@ const educationLevels = [
     <div class="flex justify-start">
       <Button
         variant="outline"
-        class="border-[#133e87] text-[#133e87] w-full"
+        class="border-[#133e87] dark:border-sky-700/50 text-[#133e87] dark:text-sky-300 hover:bg-[#133e87]/10 dark:hover:bg-sky-700/20 w-full rounded-md"
         @click="addCustomSection"
       >
         + Add Section
@@ -495,7 +489,7 @@ const educationLevels = [
     <div class="sticky bottom-8 flex justify-end">
       <Button 
         size="lg" 
-        class="bg-[#133e87] text-white hover:bg-[#133e87]/90 px-10 py-6 rounded-full shadow-2xl transition-transform hover:scale-105"
+        class="bg-[#133e87] dark:bg-sky-800 text-white hover:bg-[#133e87]/90 dark:hover:bg-sky-700 px-10 py-6 rounded-md shadow-2xl transition-transform hover:scale-105"
         :disabled="ui.savingProfile"
         @click="saveProfile"
       >

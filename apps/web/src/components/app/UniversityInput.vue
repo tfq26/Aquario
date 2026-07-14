@@ -2,6 +2,7 @@
 import { computed, ref, watch } from "vue";
 import { Input } from "@/components/ui/input";
 import { createAuthorizedHeaders } from "@/lib/auth-client";
+import { cn } from "@/lib/utils";
 
 const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? window.location.origin).replace(/\/$/, "");
 
@@ -90,7 +91,7 @@ watch(
     <Input
       :model-value="modelValue"
       :placeholder="placeholder ?? 'Search for a university'"
-      :class="props.class"
+      :class="cn('bg-white/90 dark:bg-slate-900 dark:text-[#f3f3e0] dark:border-white/10 rounded-md', props.class)"
       :list="listId"
       @focus="scheduleLookup(modelValue)"
       @update:model-value="

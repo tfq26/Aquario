@@ -83,6 +83,18 @@ export type GeneratedDocument = {
   createdAt: string;
 };
 
+export type GenerationSourceMode = "existing-resume" | "uploaded-resume" | "template-only";
+
+export type GenerationTemplateId = "classic" | "compact" | "technical";
+
+export type SelectionSuggestion = {
+  experienceIds: string[];
+  projectIds: string[];
+  certificationIds: string[];
+  skillNames: string[];
+  reasoning: string;
+};
+
 export type AppState = {
   profile: {
     fullName: string;

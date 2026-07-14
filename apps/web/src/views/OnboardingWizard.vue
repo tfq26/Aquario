@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
+import { Select } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Spinner } from "@/components/ui/spinner";
@@ -151,17 +151,17 @@ const wizardCopy = computed(() => {
                   <p class="max-w-md text-base leading-7 text-muted-foreground">{{ wizardCopy.body }}</p>
                 </div>
 
-                <div v-if="auth.user" class="flex items-center gap-3 rounded-[24px] border border-white/60 bg-white/70 px-4 py-3 w-fit">
+                <div v-if="auth.user" class="flex items-center gap-3 rounded-md border border-white/60 bg-white/70 px-4 py-3 w-fit">
                   <img v-if="auth.user.avatarUrl" :src="auth.user.avatarUrl" alt="" class="size-10 rounded-full border border-border/70 object-cover" />
                   <div class="min-w-0 flex-1">
                     <p class="text-sm font-medium truncate">{{ auth.user.name || auth.user.email }}</p>
                   </div>
-                  <Button variant="outline" @click="logout" class="h-10 rounded-xl bg-white/85 flex-shrink-0 ml-4 hover:bg-red-500/20 hover:text-red-500">
+                  <Button variant="outline" @click="logout" class="h-10 rounded-md bg-white/85 flex-shrink-0 ml-4 hover:bg-red-500/20 hover:text-red-500">
                     Sign out
                   </Button>
                 </div>
 
-                <div class="rounded-[28px] border border-white/55 bg-white/62 p-6 space-y-5">
+                <div class="rounded-md border border-white/55 bg-white/62 p-6 space-y-5">
                   <div v-for="point in wizardCopy.points" :key="point.label" class="space-y-1.5">
                     <div class="flex items-start gap-3 text-sm font-medium text-foreground">
                       <div class="mt-2 size-1.5 shrink-0 rounded-full bg-primary" />
@@ -198,13 +198,10 @@ const wizardCopy = computed(() => {
                   <div class="field-group">
                     <Label>Headline <span class="text-red-500">*</span></Label>
                     <div class="grid gap-3">
-                      <label class="flex h-11 items-center rounded-2xl border border-border bg-white/80 px-4 text-sm text-muted-foreground">
-                        <select v-model="headlineSelection" class="w-full bg-transparent text-foreground outline-none">
-                          <option value="" disabled>Select a headline</option>
-                          <option v-for="option in headlineOptions" :key="option" :value="option">{{ option }}</option>
-                          <option value="Other">Other</option>
-                        </select>
-                      </label>
+                    <Select v-model="headlineSelection" placeholder="Select a headline">
+                      <option v-for="option in headlineOptions" :key="option" :value="option">{{ option }}</option>
+                      <option value="Other">Other</option>
+                    </Select>
                       <div v-if="isCustomHeadline" class="flex gap-2">
                         <Input v-model="state.profile.headline" placeholder="Type your headline" />
                         <Button variant="outline" :disabled="ui.generatingHeadline" @click="generateHeadline">
@@ -216,10 +213,7 @@ const wizardCopy = computed(() => {
                   </div>
                   <div class="field-group lg:col-span-2">
                     <Label>Email <span class="text-red-500">*</span></Label>
-                    <InputGroup>
-                      <InputGroupAddon>@</InputGroupAddon>
-                      <InputGroupInput v-model="state.profile.email" type="email" placeholder="name@example.com" />
-                    </InputGroup>
+                    <Input v-model="state.profile.email" type="email" placeholder="name@example.com" />
                   </div>
                   <div class="field-group lg:col-span-2">
                     <Label>Phone number</Label>
@@ -235,19 +229,16 @@ const wizardCopy = computed(() => {
                         <Input v-model="state.profile.address.state" placeholder="State" />
                         <Input v-model="state.profile.address.zipCode" placeholder="ZIP" />
                       </div>
-                      <label class="md:col-span-2 flex h-11 items-center rounded-2xl border border-border bg-white/80 px-4 text-sm text-muted-foreground">
-                        <select v-model="state.profile.address.country" class="w-full bg-transparent text-foreground outline-none">
-                          <option value="" disabled>Select country</option>
-                          <option v-for="country in countryOptions" :key="country" :value="country">{{ country }}</option>
-                        </select>
-                      </label>
+                      <Select v-model="state.profile.address.country" placeholder="Select country">
+                        <option v-for="country in countryOptions" :key="country" :value="country">{{ country }}</option>
+                      </Select>
                     </div>
                   </div>
                 </div>
 
                 <!-- Step 1: Experience -->
                 <div v-else-if="ui.wizardStep === 1" class="wizard-screen space-y-6">
-                  <div class="rounded-[24px] border border-border/70 bg-white/74 p-5">
+                  <div class="rounded-md border border-border/70 bg-white/74 p-5">
                     <div class="flex items-start justify-between gap-4">
                       <div>
                         <p class="text-sm font-semibold text-foreground">Import from your resume</p>
@@ -280,7 +271,7 @@ const wizardCopy = computed(() => {
                     </p>
                   </div>
 
-                  <div v-for="(item, index) in state.profile.experience" :key="item.id" class="rounded-[24px] border border-border/60 bg-white/60 p-5 shadow-sm">
+                  <div v-for="(item, index) in state.profile.experience" :key="item.id" class="rounded-md border border-border/60 bg-white/60 p-5 shadow-sm">
                     <div class="mb-4 flex items-center justify-between">
                       <p class="text-sm font-semibold text-foreground">Role {{ index + 1 }}</p>
                       <Button variant="ghost" size="sm" class="h-8 text-muted-foreground hover:text-red-500" @click="removeExperience(index)">Remove</Button>
@@ -331,7 +322,7 @@ const wizardCopy = computed(() => {
                     </Button>
                   </div>
 
-                  <div class="rounded-[24px] border border-border/70 bg-white/74 p-5">
+                  <div class="rounded-md border border-border/70 bg-white/74 p-5">
                     <div class="mb-4 flex items-center justify-between">
                       <div>
                         <p class="text-sm font-semibold text-foreground">Education</p>
@@ -344,7 +335,7 @@ const wizardCopy = computed(() => {
                       <div
                         v-for="(edu, index) in state.profile.education"
                         :key="edu.id"
-                        class="rounded-[20px] border border-border/60 bg-white/70 p-4"
+                        class="rounded-md border border-border/60 bg-white/70 p-4"
                       >
                         <div class="mb-3 flex items-center justify-between">
                           <p class="text-sm font-medium text-foreground">Education {{ index + 1 }}</p>
@@ -358,15 +349,12 @@ const wizardCopy = computed(() => {
                             :country="edu.hasDifferentCountry ? edu.country : state.profile.address.country"
                             placeholder="Search for a university"
                           />
-                          <label class="flex h-11 items-center rounded-lg border border-border bg-white/80 px-4 text-sm text-muted-foreground">
-                            <select v-model="edu.degree" class="w-full bg-transparent text-foreground outline-none">
-                              <option value="" disabled>Select a degree</option>
-                              <option v-for="level in educationLevels" :key="level" :value="level">{{ level }}</option>
-                            </select>
-                          </label>
+                          <Select v-model="edu.degree" placeholder="Select a degree">
+                            <option v-for="level in educationLevels" :key="level" :value="level">{{ level }}</option>
+                          </Select>
                           <Input v-model="edu.fieldOfStudy" placeholder="Field of study" />
                           <div class="md:col-span-2">
-                            <div class="flex items-center gap-3 rounded-[18px] border border-border/60 bg-white/70 px-4 py-3">
+                            <div class="flex items-center gap-3 rounded-md border border-border/60 bg-white/70 px-4 py-3">
                               <Checkbox
                                 :checked="edu.hasDifferentCountry"
                                 @update:checked="
@@ -382,12 +370,9 @@ const wizardCopy = computed(() => {
                             </div>
                           </div>
                           <div v-if="edu.hasDifferentCountry" class="md:col-span-2">
-                            <label class="flex h-11 items-center rounded-lg border border-border bg-white/80 px-4 text-sm text-muted-foreground">
-                              <select v-model="edu.country" class="w-full bg-transparent text-foreground outline-none">
-                                <option value="" disabled>Select country</option>
-                                <option v-for="country in countryOptions" :key="country" :value="country">{{ country }}</option>
-                              </select>
-                            </label>
+                            <Select v-model="edu.country" placeholder="Select country">
+                              <option v-for="country in countryOptions" :key="country" :value="country">{{ country }}</option>
+                            </Select>
                           </div>
                           <div class="grid grid-cols-2 gap-3">
                             <CalendarInput v-model="edu.startDate" />
@@ -401,7 +386,7 @@ const wizardCopy = computed(() => {
                     </div>
                   </div>
 
-                  <div class="rounded-[24px] border border-border/70 bg-white/74 p-5">
+                  <div class="rounded-md border border-border/70 bg-white/74 p-5">
                     <div class="mb-4 flex items-center justify-between">
                       <div>
                         <p class="text-sm font-semibold text-foreground">Certifications</p>
@@ -414,7 +399,7 @@ const wizardCopy = computed(() => {
                       <div
                         v-for="(cert, index) in state.profile.certifications"
                         :key="cert.id"
-                        class="rounded-[20px] border border-border/60 bg-white/70 p-4"
+                        class="rounded-md border border-border/60 bg-white/70 p-4"
                       >
                         <div class="mb-3 flex items-center justify-between">
                           <p class="text-sm font-medium text-foreground">Certification {{ index + 1 }}</p>
@@ -436,7 +421,7 @@ const wizardCopy = computed(() => {
                     </div>
                   </div>
 
-                  <div class="rounded-[24px] border border-border/70 bg-white/74 p-5">
+                  <div class="rounded-md border border-border/70 bg-white/74 p-5">
                     <div class="mb-4">
                       <p class="text-sm font-semibold text-foreground">Skills</p>
                       <p class="text-sm text-muted-foreground">Pick the skills that best describe you, then add your own if needed.</p>
@@ -449,7 +434,7 @@ const wizardCopy = computed(() => {
                     />
                   </div>
 
-                  <div v-if="state.profile.customSections.length" class="rounded-[24px] border border-border/70 bg-white/74 p-5">
+                  <div v-if="state.profile.customSections.length" class="rounded-md border border-border/70 bg-white/74 p-5">
                     <div class="mb-4 flex items-center justify-between">
                       <div>
                         <p class="text-sm font-semibold text-foreground">Extra Sections</p>
@@ -461,7 +446,7 @@ const wizardCopy = computed(() => {
                       <div
                         v-for="(section, index) in state.profile.customSections"
                         :key="section.id"
-                        class="rounded-[20px] border border-border/60 bg-white/70 p-4"
+                        class="rounded-md border border-border/60 bg-white/70 p-4"
                       >
                         <div class="mb-3 flex items-center justify-between">
                           <p class="text-sm font-medium text-foreground">Section {{ index + 1 }}</p>
@@ -486,7 +471,7 @@ const wizardCopy = computed(() => {
                     <Button variant="outline" size="sm" @click="addCustomSection">Add Section</Button>
                   </div>
 
-                  <div class="rounded-[24px] border border-border/70 bg-white/74 p-5">
+                  <div class="rounded-md border border-border/70 bg-white/74 p-5">
                     <div class="mb-3 flex items-center justify-between gap-3">
                       <div>
                         <p class="text-sm font-semibold text-foreground">Professional Summary</p>
@@ -523,7 +508,7 @@ const wizardCopy = computed(() => {
                   </div>
 
                   <div class="grid gap-4 md:grid-cols-2 mt-4">
-                    <div class="rounded-[24px] border border-border/80 bg-white/70 p-5">
+                    <div class="rounded-md border border-border/80 bg-white/70 p-5">
                       <div class="flex items-center justify-between mb-4">
                         <Label class="text-sm font-semibold">GitHub Context</Label>
                         <Badge variant="outline">{{ state.repos.length }} repos</Badge>
@@ -535,7 +520,7 @@ const wizardCopy = computed(() => {
                         </Button>
                       </div>
                     </div>
-                    <div class="rounded-[24px] border border-border/80 bg-white/70 p-5">
+                    <div class="rounded-md border border-border/80 bg-white/70 p-5">
                       <Label class="text-sm font-semibold block mb-4">Original Resume</Label>
                       <div class="space-y-3">
                         <Input type="file" size="sm" class="h-9 text-xs" @change="selectedResumeFile = (($event.target as HTMLInputElement).files?.[0] ?? null)" />

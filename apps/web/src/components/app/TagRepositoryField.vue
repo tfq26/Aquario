@@ -49,11 +49,11 @@ function addCustomValue() {
         v-for="option in options"
         :key="option"
         type="button"
-        class="rounded-full border px-3 py-1.5 text-sm transition-colors"
+        class="rounded-md border px-3 py-1.5 text-sm transition-colors"
         :class="
           selectedSet.has(option)
-            ? 'border-[#133e87] bg-[#133e87] text-white'
-            : 'border-white/50 bg-white/80 text-[#133e87] hover:bg-white'
+            ? 'border-[#133e87] bg-[#133e87] dark:bg-sky-700 dark:border-transparent text-white'
+            : 'border-white/50 bg-white/80 dark:bg-white/5 dark:border-white/10 text-[#133e87] dark:text-[#f3f3e0] hover:bg-white dark:hover:bg-white/10'
         "
         @click="toggleValue(option)"
       >
@@ -65,10 +65,10 @@ function addCustomValue() {
       <Input
         v-model="customValue"
         :placeholder="placeholder ?? 'Add your own'"
-        class="bg-white/90"
+        class="bg-white/90 dark:bg-slate-900 dark:text-[#f3f3e0] dark:border-white/10 rounded-md"
         @keyup.enter="addCustomValue"
       />
-      <Button variant="outline" class="border-[#133e87] text-[#133e87] hover:bg-[#133e87]/10" @click="addCustomValue">
+      <Button variant="outline" class="border-[#133e87] dark:border-sky-700/50 text-[#133e87] dark:text-sky-300 hover:bg-[#133e87]/10 dark:hover:bg-sky-700/20 rounded-md shrink-0" @click="addCustomValue">
         {{ addLabel ?? 'Add' }}
       </Button>
     </div>
@@ -78,7 +78,7 @@ function addCustomValue() {
         v-for="value in modelValue"
         :key="value"
         variant="secondary"
-        class="bg-[#133e87]/10 text-[#133e87] border-white/40"
+        class="bg-[#133e87]/10 dark:bg-sky-900/40 text-[#133e87] dark:text-sky-200 border-white/40 dark:border-white/10 rounded-md"
       >
         {{ value }}
       </Badge>

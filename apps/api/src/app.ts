@@ -11,7 +11,13 @@ import {
   setOAuthStateCookie,
   setSessionCookie
 } from "./auth.js";
-import { generateDocument, generateHeadline, generateSummary, importProfileFromResumeText } from "./ai.js";
+import {
+  generateDocument,
+  generateHeadline,
+  generateSummary,
+  importProfileFromResumeText,
+  suggestDocumentSelections
+} from "./ai.js";
 import type { AppBindings } from "./bindings.js";
 import { getConfig } from "./config.js";
 import { fetchGitHubContext } from "./github.js";
@@ -135,6 +141,36 @@ export function createApp() {
     password: z.string().min(1),
     remember: z.boolean().optional()
   });
+
+  const generationSuggestionSchema = z.object({
+    companyName: z.string(),
+    roleTitle: z.string(),
+    jobDescription: z.string(),
+    hiringManagerNotes: z.string().optional().default("")
+  });
+
+  const generationWorkspaceSchema = z.object({
+    kind: z.enum(["tailored-resume", "cv", "cover-letter", "interview-answers"]),
+    templateId: z.enum(["classic", "compact", "technical"]),
+    sourceMode: z.enum(["existing-resume", "uploaded-resume", "template-only"]),
+    userRequest: z.string().optional(),
+    job: jobSchema,
+    selections: z.object({
+      experienceIds: z.array(z.string()),
+      projectIds: z.array(z.string()),
+      certificationIds: z.array(z.string()),
+      skillNames: z.array(z.string())
+    })
+  });
+
+  const templateInstructions: Record<"classic" | "compact" | "technical", string> = {
+    classic:
+      "Use a classic reverse-chronological structure with clear section headings, concise bullets, and a professional tone.",
+    compact:
+      "Use a compact one-page-friendly style with tighter bullets, strong prioritization, and concise phrasing.",
+    technical:
+      "Use a technically detailed style that surfaces tools, systems, architecture, and implementation impact more explicitly."
+  };
 
   const hasMeaningfulEducation = (items: Array<{ school: string; degree: string; description: string }>) =>
     items.some((item) => item.school.trim() || item.degree.trim() || item.description.trim());
@@ -438,6 +474,60 @@ export function createApp() {
     const generated = await generateDocument(data, payload, c.env);
     data.generated.unshift(generated);
     await writeStore(data, c.env);
+    return c.json(generated);
+  });
+
+  app.post("/api/generate/suggestions", async (c) => {
+    const payload = generationSuggestionSchema.parse(await c.req.json());
+    const data = await readStore(c.env);
+    const suggestions = await suggestDocumentSelections(data, payload, c.env);
+    return c.json(suggestions);
+  });
+
+  app.post("/api/generate/workspace", async (c) => {
+    const payload = generationWorkspaceSchema.parse(await c.req.json());
+    const data = await readStore(c.env);
+    const filteredData = structuredClone(data);
+
+    filteredData.job = payload.job;
+    filteredData.profile.experience = filteredData.profile.experience.filter((item) =>
+      payload.selections.experienceIds.includes(item.id)
+    );
+    filteredData.profile.projects = filteredData.profile.projects.filter((item) =>
+      payload.selections.projectIds.includes(item.id)
+    );
+    filteredData.profile.certifications = filteredData.profile.certifications.filter((item) =>
+      payload.selections.certificationIds.includes(item.id)
+    );
+    filteredData.profile.skills = filteredData.profile.skills.filter((item) => payload.selections.skillNames.includes(item));
+
+    if (payload.sourceMode === "template-only") {
+      filteredData.resumeAsset = null;
+    }
+
+    const userRequest = [
+      templateInstructions[payload.templateId],
+      payload.sourceMode === "template-only"
+        ? "Do not rely on any uploaded resume context. Build from the chosen template style and selected profile evidence only."
+        : "Use the selected profile evidence and resume context when it adds clarity.",
+      payload.userRequest ?? ""
+    ]
+      .filter(Boolean)
+      .join("\n\n");
+
+    const generated = await generateDocument(
+      filteredData,
+      {
+        kind: payload.kind,
+        userRequest
+      },
+      c.env
+    );
+
+    data.job = payload.job;
+    data.generated.unshift(generated);
+    await writeStore(data, c.env);
+
     return c.json(generated);
   });
 

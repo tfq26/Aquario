@@ -16,6 +16,21 @@ type GenerateInput = {
   userRequest?: string;
 };
 
+export type JobTargetInput = {
+  companyName: string;
+  roleTitle: string;
+  jobDescription: string;
+  hiringManagerNotes: string;
+};
+
+export type SelectionSuggestion = {
+  experienceIds: string[];
+  projectIds: string[];
+  certificationIds: string[];
+  skillNames: string[];
+  reasoning: string;
+};
+
 type GeminiResponse = {
   candidates?: Array<{
     content?: {
@@ -310,6 +325,195 @@ ${experience || "No experience provided"}
 `.trim();
 
   return (await runGeminiPrompt(prompt, bindings)) || "";
+}
+
+const commonJobWords = new Set([
+  "with",
+  "that",
+  "this",
+  "from",
+  "have",
+  "will",
+  "your",
+  "their",
+  "about",
+  "role",
+  "team",
+  "work",
+  "using",
+  "build",
+  "develop",
+  "years",
+  "experience",
+  "ability",
+  "skills",
+  "responsible",
+  "strong",
+  "plus",
+  "must",
+  "required",
+  "preferred"
+]);
+
+function tokenizeForMatch(value: string) {
+  return Array.from(
+    new Set(
+      value
+        .toLowerCase()
+        .match(/[a-z0-9.+#-]{3,}/g)
+        ?.filter((token) => !commonJobWords.has(token)) ?? []
+    )
+  );
+}
+
+function scoreTextAgainstJob(jobTokens: string[], value: string) {
+  const haystack = value.toLowerCase();
+  return jobTokens.reduce((score, token) => score + (haystack.includes(token) ? 1 : 0), 0);
+}
+
+function fallbackSelectionSuggestion(data: AppData, job: JobTargetInput): SelectionSuggestion {
+  const jobTokens = tokenizeForMatch([job.companyName, job.roleTitle, job.jobDescription, job.hiringManagerNotes].join(" "));
+
+  const experienceIds = data.profile.experience
+    .map((item) => ({
+      id: item.id,
+      score: scoreTextAgainstJob(jobTokens, [item.company, item.title, item.highlights.join(" "), item.technologies.join(" ")].join(" "))
+    }))
+    .filter((item) => item.score > 0)
+    .sort((left, right) => right.score - left.score)
+    .slice(0, 4)
+    .map((item) => item.id);
+
+  const projectIds = data.profile.projects
+    .map((item) => ({
+      id: item.id,
+      score: scoreTextAgainstJob(jobTokens, [item.title, item.category, item.summary, item.highlights.join(" "), item.technologies.join(" ")].join(" "))
+    }))
+    .filter((item) => item.score > 0)
+    .sort((left, right) => right.score - left.score)
+    .slice(0, 4)
+    .map((item) => item.id);
+
+  const certificationIds = data.profile.certifications
+    .map((item) => ({
+      id: item.id,
+      score: scoreTextAgainstJob(jobTokens, [item.name, item.issuer, item.credentialId].join(" "))
+    }))
+    .filter((item) => item.score > 0)
+    .sort((left, right) => right.score - left.score)
+    .slice(0, 3)
+    .map((item) => item.id);
+
+  const skillNames = data.profile.skills
+    .map((skill) => ({
+      name: skill,
+      score: scoreTextAgainstJob(jobTokens, skill)
+    }))
+    .filter((item) => item.score > 0)
+    .sort((left, right) => right.score - left.score)
+    .slice(0, 12)
+    .map((item) => item.name);
+
+  return {
+    experienceIds,
+    projectIds,
+    certificationIds,
+    skillNames,
+    reasoning:
+      "These suggestions were ranked from your saved profile by matching the job description against your experience, projects, certifications, and skills."
+  };
+}
+
+export async function suggestDocumentSelections(
+  data: AppData,
+  job: JobTargetInput,
+  bindings: AppBindings = {}
+): Promise<SelectionSuggestion> {
+  const fallback = fallbackSelectionSuggestion(data, job);
+
+  try {
+    const prompt = `
+You are helping tailor hiring materials for a candidate.
+
+Read the target job and choose the best matching candidate experiences, projects, certifications, and skills.
+
+Return only valid JSON in this exact shape:
+{
+  "experienceIds": ["string"],
+  "projectIds": ["string"],
+  "certificationIds": ["string"],
+  "skillNames": ["string"],
+  "reasoning": "string"
+}
+
+Rules:
+- Only choose from the provided IDs and skill names.
+- Prefer quality over quantity.
+- Pick at most 4 experiences, 4 projects, 3 certifications, and 12 skills.
+- Reasoning should be 1 to 2 short sentences.
+- Return raw JSON only.
+
+Target job:
+Company: ${job.companyName}
+Role: ${job.roleTitle}
+Description:
+${formatStructuredText(job.jobDescription)}
+
+Extra details:
+${formatStructuredText(job.hiringManagerNotes)}
+
+Candidate experiences:
+${data.profile.experience
+  .map(
+    (item) =>
+      `ID: ${item.id}\nTitle: ${item.title}\nCompany: ${item.company}\nHighlights: ${item.highlights.join("; ")}\nTechnologies: ${item.technologies.join(", ")}`
+  )
+  .join("\n\n") || "None"}
+
+Candidate projects:
+${data.profile.projects
+  .map(
+    (item) =>
+      `ID: ${item.id}\nTitle: ${item.title}\nSummary: ${item.summary}\nHighlights: ${item.highlights.join("; ")}\nTechnologies: ${item.technologies.join(", ")}`
+  )
+  .join("\n\n") || "None"}
+
+Candidate certifications:
+${data.profile.certifications
+  .map((item) => `ID: ${item.id}\nName: ${item.name}\nIssuer: ${item.issuer}`)
+  .join("\n\n") || "None"}
+
+Candidate skills:
+${data.profile.skills.join(", ") || "None"}
+`.trim();
+
+    const response = await runGeminiPrompt(prompt, bindings);
+    const match = response.match(/\{[\s\S]*\}/);
+
+    if (!match) {
+      return fallback;
+    }
+
+    const parsed = JSON.parse(match[0]) as Partial<SelectionSuggestion>;
+    const experienceIds = (parsed.experienceIds ?? []).filter((id) => data.profile.experience.some((item) => item.id === id)).slice(0, 4);
+    const projectIds = (parsed.projectIds ?? []).filter((id) => data.profile.projects.some((item) => item.id === id)).slice(0, 4);
+    const certificationIds = (parsed.certificationIds ?? [])
+      .filter((id) => data.profile.certifications.some((item) => item.id === id))
+      .slice(0, 3);
+    const skillNames = (parsed.skillNames ?? [])
+      .filter((name) => data.profile.skills.includes(name))
+      .slice(0, 12);
+
+    return {
+      experienceIds: experienceIds.length ? experienceIds : fallback.experienceIds,
+      projectIds: projectIds.length ? projectIds : fallback.projectIds,
+      certificationIds: certificationIds.length ? certificationIds : fallback.certificationIds,
+      skillNames: skillNames.length ? skillNames : fallback.skillNames,
+      reasoning: parsed.reasoning?.trim() || fallback.reasoning
+    };
+  } catch {
+    return fallback;
+  }
 }
 
 function createEmptyAddress(): Address {

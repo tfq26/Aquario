@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { computed } from "vue";
+import { Search, Github, FileText, UserCheck, Database, LayoutDashboard, PlusCircle, UserCircle } from "lucide-vue-next";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import { BentoGrid, BentoGridCard } from "@/components/ui/bento-grid";
 import { useApp } from "@/composables/useApp";
 import DocumentTable from "./DocumentTable.vue";
-import GenerationPanel from "./GenerationPanel.vue";
 
 const { state, ui, controls, enterProfilePage, startGenerateFlow } = useApp();
 
@@ -22,7 +24,8 @@ const dashboardCards = computed(() => [
   {
     label: "Generated documents",
     value: String(state.generated.length),
-    detail: "Across resumes, CVs, cover letters, and interview packs."
+    detail: "Across resumes, CVs, cover letters, and interview packs.",
+    icon: FileText
   },
   {
     label: "Profile completeness",
@@ -35,48 +38,90 @@ const dashboardCards = computed(() => [
         Number(state.resumeAsset !== null)) *
         20
     )}%`,
-    detail: "A stronger profile produces more grounded drafts."
+    detail: "A stronger profile produces more grounded drafts.",
+    icon: UserCheck
   },
   {
     label: "Context sources",
     value: String(state.profile.projects.length + (state.resumeAsset ? 1 : 0)),
-    detail: "Synced GitHub projects plus uploaded resume context."
+    detail: "Synced GitHub projects plus uploaded resume context.",
+    icon: Database
   }
 ]);
 </script>
 
 <template>
-  <div class="space-y-6">
-    <section class="grid gap-4 lg:grid-cols-3">
-      <Card v-for="card in dashboardCards" :key="card.label" class="border-white/60 bg-[#cbdceb]/60 backdrop-blur-md">
-        <CardContent class="pt-6">
-          <p class="text-sm font-medium text-[#133e87]/80">{{ card.label }}</p>
-          <p class="mt-2 text-3xl font-bold tracking-[-0.04em] text-[#133e87]">{{ card.value }}</p>
-          <p class="mt-2 text-sm leading-6 text-[#608bc1]">{{ card.detail }}</p>
-        </CardContent>
-      </Card>
-    </section>
+  <div class="space-y-8">
+    <!-- Bento Grid Section -->
+    <BentoGrid class="w-full">
+      <BentoGridCard
+        v-for="card in dashboardCards"
+        :key="card.label"
+        :name="card.label"
+        :description="card.detail"
+        :icon="card.icon"
+        href="#"
+        cta="View details"
+        class="border-none bg-[#cbdceb]/40 backdrop-blur-md dark:bg-black/40"
+      >
+        <template #background>
+          <div class="absolute inset-0 flex items-center justify-center opacity-15 transition-opacity duration-300 group-hover:opacity-20">
+            <component :is="card.icon" class="size-20 text-[#133e87] dark:text-sky-300" />
+          </div>
+          <div class="absolute top-3 right-3 text-xl font-black tracking-tight text-[#133e87] dark:text-[#f3f3e0] opacity-30">
+            {{ card.value }}
+          </div>
+        </template>
+      </BentoGridCard>
 
-    <Card class="border-white/60 bg-[#cbdceb]/40 backdrop-blur-md">
-      <CardContent class="pt-6">
+      <BentoGridCard
+        name="Update Profile"
+        description="Refine your details to improve the quality of generated documents."
+        :icon="UserCircle"
+        href="#"
+        cta="Edit profile"
+        class="border-none bg-[#cbdceb]/40 backdrop-blur-md dark:bg-black/40 md:col-span-1"
+        @click="enterProfilePage"
+      >
+        <template #background>
+          <div class="absolute inset-0 bg-gradient-to-br from-indigo-500/10 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+        </template>
+      </BentoGridCard>
+    </BentoGrid>
+
+    <!-- Search & Filter Card -->
+    <Card class="border-none bg-[#cbdceb]/40 backdrop-blur-md dark:bg-black/40 shadow-sm rounded-xl overflow-hidden">
+      <CardContent class="p-6">
         <div class="grid gap-4 xl:grid-cols-[1.2fr_220px_auto_auto]">
-          <InputGroup>
-            <InputGroupAddon class="bg-[#133e87] text-white">Search</InputGroupAddon>
-            <InputGroupInput v-model="controls.search" placeholder="Search generated documents" class="bg-white/90" />
-          </InputGroup>
-          <label class="flex h-11 items-center rounded-2xl border border-border bg-white/90 px-4 text-sm text-muted-foreground">
-            <select v-model="controls.filter" class="w-full bg-transparent text-[#133e87] outline-none">
-              <option v-for="option in generationKinds" :key="option.value" :value="option.value">{{ option.label }}</option>
-            </select>
-          </label>
-          <Button class="bg-[#133e87] text-white hover:bg-[#133e87]/90" @click="startGenerateFlow">Generate</Button>
-          <Button variant="outline" class="border-[#133e87] text-[#133e87] hover:bg-[#133e87]/10" @click="enterProfilePage">Edit Details</Button>
+          <Input
+            v-model="controls.search"
+            :icon="Search"
+            placeholder="Search generated documents..."
+            class="h-12 text-base"
+          />
+          
+          <Select
+            v-model="controls.filter"
+            :icon="LayoutDashboard"
+            placeholder="Filter by type"
+            class="h-12"
+          >
+            <option v-for="option in generationKinds" :key="option.value" :value="option.value">{{ option.label }}</option>
+          </Select>
+          
+          <Button class="h-12 px-8 bg-indigo-600 dark:bg-indigo-700 text-white hover:bg-indigo-500 dark:hover:bg-indigo-600 rounded-xl font-bold shadow-lg shadow-indigo-600/20 transition-all active:scale-95" @click="startGenerateFlow">
+            <PlusCircle class="mr-2 size-4" />
+            Generate New
+          </Button>
+          
+          <Button variant="ghost" class="h-12 rounded-xl text-[#133e87] dark:text-sky-300 hover:bg-indigo-500/10 transition-colors" @click="enterProfilePage">
+            <UserCircle class="mr-2 size-4" />
+            Profile Settings
+          </Button>
         </div>
       </CardContent>
     </Card>
 
     <DocumentTable />
-
-    <GenerationPanel />
   </div>
 </template>

@@ -55,7 +55,7 @@ watch(
     :placeholder="placeholder"
     :class="
       cn(
-        'flex w-full overflow-hidden rounded-lg border border-border bg-background/90 px-4 py-5 text-sm text-foreground shadow-[0_1px_0_rgba(255,255,255,0.55)] transition-all duration-300 placeholder:text-muted-foreground/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+        'flex min-h-[80px] w-full rounded-xl border border-[#133e87]/10 bg-white/95 px-4 py-3 text-base text-[#133e87] shadow-sm transition-all duration-300 placeholder:text-[#608bc1]/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/20 disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/5 dark:bg-slate-900/90 dark:text-[#f3f3e0] dark:placeholder:text-sky-400/30',
         $props.class
       )
     "
